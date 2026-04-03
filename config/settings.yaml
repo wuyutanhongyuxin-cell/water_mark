@@ -1,0 +1,41 @@
+# WatermarkForge 全局配置
+# 非敏感配置项，敏感信息请放 .env
+
+# 水印默认参数
+watermark:
+  default_strength: "medium"    # low / medium / high
+  auto_verify: true             # 嵌入后自动提取验证
+  max_file_size_mb: 500         # 单文件最大处理大小 (MB)
+
+# 输出设置
+output:
+  directory: "output"           # 默认输出目录
+  naming: "{stem}_wm{ext}"     # 输出文件命名模板
+  overwrite: false              # 是否覆盖已有输出文件
+
+# 日志设置
+logging:
+  level: "INFO"                 # DEBUG / INFO / WARNING / ERROR
+  format: "{time} | {level} | {message}"
+  audit_file: "logs/audit.log"  # 审计日志路径
+  rotation: "10 MB"             # 日志轮转大小
+
+# DeepSeek AI 设置
+ai:
+  enabled: false                # 是否启用 AI 辅助（需配置 API Key）
+  model: "deepseek-chat"        # 模型名称
+  base_url: "https://api.deepseek.com"
+  timeout: 30                   # API 超时秒数
+  max_retries: 2                # 最大重试次数
+
+# 安全设置
+security:
+  encryption: "AES-256"         # 水印载荷加密算法
+  key_storage: "keys"           # 密钥存放目录
+  error_correction: "BCH"       # 纠错编码方式
+
+# 批量处理
+batch:
+  max_workers: 4                # 并行处理线程数
+  skip_errors: false            # 遇错是否跳过继续
+  recursive: true               # 是否递归扫描子目录

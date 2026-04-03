@@ -1,0 +1,73 @@
+# WatermarkForge 水印策略路由规则
+# category → 使用哪个处理器 + 算法参数
+
+rules:
+  image:
+    processor: "image_wm.ImageWatermark"
+    algorithm: "DWT-DCT-SVD"
+    extensions: [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp"]
+    params:
+      block_size: 4           # DCT 分块大小
+      wavelet: "haar"         # 小波基函数
+      embed_factor: 36        # 嵌入强度因子
+
+  pdf:
+    processor: "pdf_wm.PdfWatermark"
+    algorithm: "layer+text"
+    extensions: [".pdf"]
+    params:
+      dpi: 200                # PDF 渲染 DPI
+      text_watermark: true    # 同时嵌入文本水印
+
+  office_word:
+    processor: "office_wm.OfficeWatermark"
+    algorithm: "image+text"
+    extensions: [".docx"]
+    params:
+      embed_images: true      # 对嵌入图片加水印
+      text_watermark: true    # 零宽字符文本水印
+
+  office_excel:
+    processor: "office_wm.OfficeWatermark"
+    algorithm: "metadata+text"
+    extensions: [".xlsx"]
+    params:
+      metadata_watermark: true
+      text_watermark: true
+
+  office_pptx:
+    processor: "office_wm.OfficeWatermark"
+    algorithm: "image+text"
+    extensions: [".pptx"]
+    params:
+      embed_images: true
+      text_watermark: true
+
+  audio:
+    processor: "audio_wm.AudioWatermark"
+    algorithm: "DWT-DCT"
+    extensions: [".mp3", ".wav", ".flac", ".ogg"]
+    params:
+      sample_rate: 44100
+      embed_band: "mid"       # 嵌入频段
+
+  video:
+    processor: "video_wm.VideoWatermark"
+    algorithm: "frame-DWT-DCT-SVD"
+    extensions: [".mp4", ".avi", ".mkv", ".mov"]
+    params:
+      keyframe_only: false    # 是否只在关键帧嵌入
+      frame_interval: 10      # 每 N 帧嵌入一次
+
+  text:
+    processor: "text_wm.TextWatermark"
+    algorithm: "zero-width"
+    extensions: [".txt", ".csv", ".json", ".md"]
+    params:
+      method: "zwsp"          # 零宽字符方法
+      position: "distributed" # 分散嵌入
+
+# 未知类型处理策略
+unknown:
+  action: "reject"            # reject / warn_and_skip / force_text
+  log_level: "ERROR"
