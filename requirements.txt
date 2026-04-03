@@ -2,7 +2,7 @@
 # 安装: pip install -r requirements.txt
 
 # === 核心依赖 ===
-numpy>=1.24.0
+numpy>=1.24.0,<2.0       # NumPy 2.x requires Python >=3.11
 opencv-python-headless>=4.8.0
 Pillow>=10.0.0
 
