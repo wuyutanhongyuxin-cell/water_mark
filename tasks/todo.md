@@ -9,21 +9,24 @@
 - [x] 创建 `.env.example` + `.gitignore`
 - [x] 编写 `requirements.txt`
 
-## Phase 1: 核心框架 ✅
-- [x] `src/watermarks/base.py` — 水印处理器抽象基类（197行）
-- [x] `src/core/detector.py` — 文件类型检测：magic bytes + ext 双重验证（196行）
-- [x] `config/settings.yaml` — 全局配置（41行）
-- [x] `config/watermark_rules.yaml` — 8类文件路由规则（73行）
-- [x] `src/core/router.py` — 文件类型→处理器策略路由（174行）
-- [x] `src/core/embedder.py` — 统一嵌入接口 + 自动验证 + 回滚（153行）
-- [x] `src/core/extractor.py` — 统一提取接口（96行）
-- [x] 10 项自检测试全部通过
+## Phase 1: 核心框架 ✅ (代码审查后修复)
+- [x] `src/watermarks/base.py` — 水印处理器抽象基类（198行）
+- [x] `src/core/detector.py` — 文件类型检测 + OOXML/ZIP 特判 + MIME 清洗（195行）
+- [x] `config/settings.yaml` — 全局配置（42行）
+- [x] `config/watermark_rules.yaml` — 路由规则 + unknown 层级修复（74行）
+- [x] `src/core/router.py` — 策略路由 + 白名单 + lru_cache（173行）
+- [x] `src/core/embedder.py` — 统一嵌入 + 安全前置检查 + fail-closed 验证（179行）
+- [x] `src/core/extractor.py` — 统一提取 + 错误模型统一（108行）
+- [x] GPT-5.4 + Sonnet 4.6 双模型代码审查 → Opus 4.6 最终裁决
+- [x] 13 项修复自检 + 5 项集成测试全部通过
 
-## Phase 2: 图像水印（MVP）
-- [ ] `src/watermarks/image_wm.py` — DWT-DCT-SVD 图像盲水印
-- [ ] 嵌入-提取往返测试
-- [ ] 鲁棒性测试（JPEG压缩/缩放/裁剪）
-- [ ] PSNR/SSIM 质量评估
+## Phase 2: 图像水印（MVP）✅
+- [x] `src/watermarks/image_wm.py` — DWT-DCT-SVD 图像盲水印（182行）
+- [x] 固定 512-bit 编码方案（无需 sidecar 文件）
+- [x] 嵌入-提取往返测试（PNG/BMP/中文ID 通过）
+- [x] 鲁棒性测试：JPEG Q≥80 通过，缩放 0.5x~2.0x 全通过
+- [x] PSNR 质量评估：LOW=44dB, MEDIUM=37dB, HIGH=33dB
+- [x] 统一 API 集成测试 5/5 通过（embedder→auto_verify→extractor）
 
 ## Phase 3: 安全模块
 - [ ] `src/security/crypto.py` — AES-256 水印加密
@@ -65,3 +68,5 @@
 |------|----------|
 | 2026-04-03 | Phase 0 技术调研完成，项目结构确定 |
 | 2026-04-03 | Phase 1 核心框架完成：detector/router/embedder/extractor + 配置 + 10项测试通过 |
+| 2026-04-03 | Phase 1 代码审查（GPT-5.4+Sonnet4.6+Opus4.6 三方审查）+ 13项修复 |
+| 2026-04-03 | Phase 2 图像盲水印完成：DWT-DCT-SVD + 鲁棒性测试 + 集成测试 |

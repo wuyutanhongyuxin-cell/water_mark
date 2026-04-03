@@ -7,17 +7,18 @@
 流程：detect_file_type() → category → 查 rules → 实例化处理器
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-import logging
+import re
 
 import yaml
+from loguru import logger
 
 from src.core.detector import DetectionResult, detect_file_type
 from src.watermarks.base import WatermarkBase, WatermarkStrength
 
-logger = logging.getLogger(__name__)
 
 # 默认配置文件路径
 _DEFAULT_RULES_PATH = Path(__file__).parent.parent.parent / "config" / "watermark_rules.yaml"
@@ -37,27 +38,24 @@ class RouteResult:
     """
     processor: Optional[WatermarkBase]
     detection: DetectionResult
-    rule_params: dict = None
+    rule_params: dict = field(default_factory=dict)
     error: str = ""
-
-    def __post_init__(self):
-        if self.rule_params is None:
-            self.rule_params = {}
 
 
 def load_rules(rules_path: Path = _DEFAULT_RULES_PATH) -> dict:
-    """
-    加载水印路由规则配置。
+    """加载水印路由规则配置（带缓存）。Raises FileNotFoundError。"""
+    return _load_rules_cached(str(rules_path))
 
-    Args:
-        rules_path: 规则文件路径
 
-    Returns:
-        规则字典
+def load_settings(settings_path: Path = _DEFAULT_SETTINGS_PATH) -> dict:
+    """加载全局配置（带缓存）。"""
+    return _load_settings_cached(str(settings_path))
 
-    Raises:
-        FileNotFoundError: 规则文件不存在
-    """
+
+@lru_cache(maxsize=4)
+def _load_rules_cached(rules_path_str: str) -> dict:
+    """内部缓存实现（lru_cache 要求参数可哈希，用 str）。"""
+    rules_path = Path(rules_path_str)
     if not rules_path.exists():
         raise FileNotFoundError(f"Rules file not found: {rules_path}")
     try:
@@ -69,8 +67,10 @@ def load_rules(rules_path: Path = _DEFAULT_RULES_PATH) -> dict:
         raise
 
 
-def load_settings(settings_path: Path = _DEFAULT_SETTINGS_PATH) -> dict:
-    """加载全局配置。"""
+@lru_cache(maxsize=4)
+def _load_settings_cached(settings_path_str: str) -> dict:
+    """内部缓存实现。"""
+    settings_path = Path(settings_path_str)
     if not settings_path.exists():
         return {}
     try:
@@ -81,20 +81,18 @@ def load_settings(settings_path: Path = _DEFAULT_SETTINGS_PATH) -> dict:
         return {}
 
 
+# 白名单正则：只允许 "模块名.类名" 格式，防止路径遍历或任意模块注入
+_PROCESSOR_PATH_RE = re.compile(r"^[a-zA-Z_]\w*\.[A-Za-z_]\w*$")
+
+
 def _resolve_processor(processor_path: str, strength: WatermarkStrength) -> Optional[WatermarkBase]:
-    """
-    根据处理器路径字符串动态导入并实例化处理器。
-
-    Args:
-        processor_path: 格式为 "module_name.ClassName"（如 "image_wm.ImageWatermark"）
-        strength: 水印强度
-
-    Returns:
-        处理器实例，导入失败返回 None
-    """
+    """动态导入处理器。格式 "module_name.ClassName"，严格白名单校验。"""
+    # 安全校验：必须是 "word.Word" 格式，禁止路径遍历和任意模块注入
+    if not _PROCESSOR_PATH_RE.match(processor_path):
+        logger.error(f"Invalid processor path (blocked): {processor_path}")
+        return None
     try:
         module_name, class_name = processor_path.rsplit(".", 1)
-        # 从 src.watermarks 包中导入
         full_module = f"src.watermarks.{module_name}"
         import importlib
         module = importlib.import_module(full_module)

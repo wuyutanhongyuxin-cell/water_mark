@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Optional
-import time
+import datetime
 
 
 class WatermarkStrength(Enum):
@@ -40,9 +40,11 @@ class WatermarkPayload:
     custom_data: dict = field(default_factory=dict)
 
     def __post_init__(self):
-        """自动填充时间戳（如果未提供）。"""
+        """自动填充 UTC 时间戳（如果未提供）。"""
         if not self.timestamp:
-            self.timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+            self.timestamp = datetime.datetime.now(
+                datetime.timezone.utc
+            ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @dataclass
@@ -192,6 +194,6 @@ class WatermarkBase(ABC):
         Returns:
             bool: 文件可处理返回 True
         """
-        if not file_path.exists():
+        if not file_path.exists() or not file_path.is_file():
             return False
         return file_path.suffix.lower() in self.supported_extensions()

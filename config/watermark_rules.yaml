@@ -67,7 +67,7 @@ rules:
       method: "zwsp"          # 零宽字符方法
       position: "distributed" # 分散嵌入
 
-# 未知类型处理策略
-unknown:
-  action: "reject"            # reject / warn_and_skip / force_text
-  log_level: "ERROR"
+  # 未知类型处理策略（在 rules 内部，确保 load_rules() 能读取）
+  unknown:
+    action: "reject"            # reject / warn_and_skip / force_text
+    log_level: "ERROR"

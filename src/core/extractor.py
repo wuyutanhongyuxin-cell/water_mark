@@ -7,12 +7,12 @@
 
 from pathlib import Path
 from typing import Optional
-import logging
+
+from loguru import logger
 
 from src.core.router import route_file
 from src.watermarks.base import ExtractResult, WatermarkStrength
 
-logger = logging.getLogger(__name__)
 
 
 def extract_watermark(
@@ -36,8 +36,17 @@ def extract_watermark(
     """
     file_path = Path(file_path)
 
+    # 0. 文件存在性检查（统一返回 Result，不抛异常）
+    if not file_path.exists():
+        return ExtractResult(success=False, message=f"File not found: {file_path}")
+    if not file_path.is_file():
+        return ExtractResult(success=False, message=f"Not a file: {file_path}")
+
     # 1. 路由匹配
-    route = route_file(file_path, strength=strength)
+    try:
+        route = route_file(file_path, strength=strength)
+    except Exception as e:
+        return ExtractResult(success=False, message=f"Routing error: {e}")
     if route.processor is None:
         return ExtractResult(
             success=False,
@@ -55,7 +64,7 @@ def extract_watermark(
     try:
         result = route.processor.extract(file_path)
     except Exception as e:
-        logger.error(f"Extract failed for {file_path}: {e}")
+        logger.exception(f"Extract failed for {file_path}: {e}")
         return ExtractResult(
             success=False,
             message=f"Extract error: {e}",

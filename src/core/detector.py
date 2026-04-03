@@ -10,9 +10,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
-import logging
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # 文件类型分类映射：MIME 前缀/模式 → 内部类别
 FILE_CATEGORIES = {
@@ -116,38 +115,37 @@ def _detect_by_extension(file_path: Path) -> Optional[str]:
 
 
 def _mime_to_category(mime_type: str) -> Optional[str]:
-    """将 MIME 类型映射为内部文件类别。"""
+    """将 MIME 类型映射为内部文件类别。清洗 MIME 参数（如 charset）。"""
+    # 清洗 MIME 参数：text/plain; charset=utf-8 → text/plain
+    clean_mime = mime_type.split(";")[0].strip()
     for category, mimes in FILE_CATEGORIES.items():
-        if mime_type in mimes:
+        if clean_mime in mimes:
             return category
     return None
 
 
 def detect_file_type(file_path: Path) -> DetectionResult:
-    """
-    检测文件类型（双重验证）。
-
-    流程：
-    1. magic bytes 检测 → MIME
-    2. 扩展名检测 → MIME
-    3. 比对：一致→高置信度；不一致→以 magic 为准+告警；
-       都失败→返回 unknown
-
-    Args:
-        file_path: 待检测的文件路径
-
-    Returns:
-        DetectionResult: 检测结果
-
-    Raises:
-        FileNotFoundError: 文件不存在
-    """
+    """检测文件类型（magic bytes + 扩展名双重验证）。Raises FileNotFoundError。"""
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
     ext = file_path.suffix.lower()
     magic_mime = _detect_by_magic(file_path)
     ext_mime = _detect_by_extension(file_path)
+
+    # OOXML 特判：.docx/.xlsx/.pptx 的 magic bytes 是 ZIP 容器
+    # python-magic 可能返回 application/zip 而非 OOXML MIME
+    if magic_mime and magic_mime.split(";")[0].strip() in (
+        "application/zip", "application/x-zip-compressed",
+    ):
+        if ext in EXT_TO_MIME and ext in (".docx", ".xlsx", ".pptx"):
+            # 信任扩展名对应的 OOXML MIME（ZIP 是合法容器格式）
+            magic_mime = EXT_TO_MIME[ext]
+            logger.info(f"OOXML override: {ext} detected as ZIP, using {magic_mime}")
+
+    # 清洗 MIME 参数
+    if magic_mime:
+        magic_mime = magic_mime.split(";")[0].strip()
 
     # 情况1：两者都成功且一致
     if magic_mime and ext_mime and magic_mime == ext_mime:
