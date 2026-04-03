@@ -87,8 +87,8 @@ _PROCESSOR_PATH_RE = re.compile(r"^[a-zA-Z_]\w*\.[A-Za-z_]\w*$")
 
 def _resolve_processor(processor_path: str, strength: WatermarkStrength) -> Optional[WatermarkBase]:
     """动态导入处理器。格式 "module_name.ClassName"，严格白名单校验。"""
-    # 安全校验：必须是 "word.Word" 格式，禁止路径遍历和任意模块注入
-    if not _PROCESSOR_PATH_RE.match(processor_path):
+    # 安全校验：必须是 "word.Word" 格式，禁止路径遍历、双下划线和任意模块注入
+    if not _PROCESSOR_PATH_RE.match(processor_path) or "__" in processor_path:
         logger.error(f"Invalid processor path (blocked): {processor_path}")
         return None
     try:
