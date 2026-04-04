@@ -34,15 +34,14 @@
 
 ## 支持的文件类型与算法
 
-| 文件类型 | 水印算法 | 说明 |
+| 文件类型 | 水印算法 | 状态 |
 |----------|----------|------|
-| JPG/PNG/BMP/TIFF/WebP | **DWT-DCT-SVD** | 频域盲水印，抗压缩/缩放/裁剪 |
-| PDF | **图层水印 + 文本水印** | 渲染为图像嵌入 + 零宽字符双重保护 |
-| DOCX/PPTX | **图片水印 + 文本水印** | 嵌入图片加水印 + 文本零宽字符 |
-| XLSX | **元数据 + 文本水印** | 文档属性 + 零宽字符 |
-| MP3/WAV/FLAC | **DWT-DCT 频域** | 利用心理声学掩蔽模型 |
-| MP4/AVI/MKV | **逐帧 DWT-DCT-SVD** | 关键帧水印嵌入 |
-| TXT/CSV/JSON/MD | **零宽字符** | 插入不可见 Unicode 字符 |
+| JPG/PNG/BMP/TIFF/WebP | **DWT-DCT-SVD** 频域盲水印 | ✅ 已实现 |
+| PDF | **渲染→噪声→DWT-DCT-SVD→重建** | ✅ 已实现 |
+| DOCX/XLSX/PPTX | **零宽字符** 嵌入文本 run/cell | ✅ 已实现 |
+| TXT/CSV/JSON/MD | **零宽字符** 不可见 Unicode | ✅ 已实现 |
+| MP3/WAV/FLAC | **DWT-DCT 频域** | 📋 Phase 5 |
+| MP4/AVI/MKV | **逐帧 DWT-DCT-SVD** | 📋 Phase 5 |
 
 ## 快速开始
 
@@ -116,9 +115,13 @@ watermark/
 │   │   └── extractor.py   # 统一提取接口
 │   ├── watermarks/        # 水印处理器（策略模式）
 │   │   ├── base.py        # 抽象基类
-│   │   ├── image_wm.py    # 图像盲水印
-│   │   ├── pdf_wm.py      # PDF 水印
-│   │   └── ...            # 其他类型
+│   │   ├── payload_codec.py # 载荷编解码（v2 加密）
+│   │   ├── zwc_codec.py   # 零宽字符编解码器
+│   │   ├── image_wm.py    # 图像盲水印（DWT-DCT-SVD）
+│   │   ├── pdf_wm.py      # PDF 盲水印（渲染→重建）
+│   │   ├── text_wm.py     # 纯文本水印（零宽字符）
+│   │   ├── office_wm.py   # Office 调度器
+│   │   └── _docx/_xlsx/_pptx_handler.py  # 格式处理器
 │   ├── security/          # 安全模块
 │   │   ├── crypto.py      # AES-256 加密
 │   │   ├── key_manager.py # 密钥管理
@@ -168,8 +171,8 @@ watermark/
 | Phase 0 | 项目初始化、技术调研 | ✅ 完成 |
 | Phase 1 | 核心框架（检测/路由/嵌入/提取）+ 三方代码审查 | ✅ 完成 |
 | Phase 2 | 图像盲水印 MVP（DWT-DCT-SVD, PSNR≥37dB） | ✅ 完成 |
-| Phase 3 | 安全模块（AES加密/密钥/审计） | 🔜 下一步 |
-| Phase 4 | PDF + Office 水印 | 📋 计划中 |
+| Phase 3 | 安全模块（AES-256-GCM/密钥管理/审计日志） | ✅ 完成 |
+| Phase 4 | PDF + Office + Text 水印（8 种格式，E2E 8/8 通过） | ✅ 完成 |
 | Phase 5 | 音视频水印 | 📋 计划中 |
 | Phase 6 | DeepSeek AI 集成 | 📋 计划中 |
 | Phase 7 | CLI + 自动化 | 📋 计划中 |
@@ -183,7 +186,7 @@ watermark/
 | 图像水印 | blind-watermark + invisible-watermark |
 | PDF | PyMuPDF + pdf2image |
 | Office | python-docx / openpyxl / python-pptx |
-| 文本水印 | text-blind-watermark |
+| 文本水印 | 自研零宽字符编码（zwc_codec） |
 | AI 集成 | DeepSeek API (OpenAI 兼容) |
 | 加密 | cryptography (AES-256) |
 | 文件检测 | python-magic-bin + filetype |

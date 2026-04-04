@@ -137,14 +137,17 @@ def detect_file_type(file_path: Path) -> DetectionResult:
     ext_mime = _detect_by_extension(file_path)
 
     # OOXML 特判：.docx/.xlsx/.pptx 的 magic bytes 是 ZIP 容器
-    # python-magic 可能返回 application/zip 而非 OOXML MIME
-    if magic_mime and magic_mime.split(";")[0].strip() in (
+    # python-magic 可能返回 application/zip 或 application/octet-stream
+    _ooxml_exts = (".docx", ".xlsx", ".pptx")
+    _ambiguous_mimes = (
         "application/zip", "application/x-zip-compressed",
-    ):
-        if ext in EXT_TO_MIME and ext in (".docx", ".xlsx", ".pptx"):
+        "application/octet-stream",
+    )
+    if magic_mime and magic_mime.split(";")[0].strip() in _ambiguous_mimes:
+        if ext in EXT_TO_MIME and ext in _ooxml_exts:
             # 信任扩展名对应的 OOXML MIME（ZIP 是合法容器格式）
             magic_mime = EXT_TO_MIME[ext]
-            logger.info(f"OOXML override: {ext} detected as ZIP, using {magic_mime}")
+            logger.info(f"OOXML override: {ext} detected as ZIP/octet-stream, using {magic_mime}")
 
     # 清洗 MIME 参数
     if magic_mime:

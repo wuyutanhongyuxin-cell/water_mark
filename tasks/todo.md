@@ -40,10 +40,17 @@
 - [x] image_wm.py 拆分 payload_codec.py（246→139+126 行）
 - [x] cv2 中文路径修复：imdecode/imencode + embed_img 参数
 
-## Phase 4: PDF + Office 水印
-- [ ] `src/watermarks/pdf_wm.py` — PDF 盲水印
-- [ ] `src/watermarks/office_wm.py` — DOCX/XLSX/PPTX 水印
-- [ ] `src/watermarks/text_wm.py` — 纯文本零宽字符水印
+## Phase 4: PDF + Office + Text 水印 ✅
+- [x] `src/watermarks/zwc_codec.py` — 零宽字符编解码器，text_wm/office_wm 共用（~93行）
+- [x] `src/watermarks/text_wm.py` — 纯文本零宽字符水印 TXT/CSV/JSON/MD（~124行）
+- [x] `src/watermarks/pdf_wm.py` — PDF 渲染→噪声→DWT-DCT-SVD→重建（~197行）
+- [x] `src/watermarks/office_wm.py` — Office 水印调度器（~106行）
+- [x] `src/watermarks/_docx_handler.py` — DOCX 格式处理（~76行）
+- [x] `src/watermarks/_xlsx_handler.py` — XLSX 格式处理（~81行）
+- [x] `src/watermarks/_pptx_handler.py` — PPTX 格式处理（~88行）
+- [x] 修复 `detector.py` OOXML 特判：application/octet-stream 也触发覆盖
+- [x] PDF 纯白页面频域不足问题：嵌入前加微弱高斯噪声（sigma=3）
+- [x] 端到端集成测试 8/8 通过（TXT/CSV/JSON/MD/DOCX/XLSX/PPTX/PDF）
 
 ## Phase 5: 音视频水印
 - [ ] `src/watermarks/audio_wm.py` — 音频 DWT-DCT 水印
@@ -77,3 +84,4 @@
 | 2026-04-03 | Phase 1 代码审查（GPT-5.4+Sonnet4.6+Opus4.6 三方审查）+ 13项修复 |
 | 2026-04-03 | Phase 2 图像盲水印完成：DWT-DCT-SVD + 鲁棒性测试 + 集成测试 |
 | 2026-04-04 | Phase 3 安全模块完成：AES-256-GCM + 密钥管理 + 审计日志 + 中文路径修复 |
+| 2026-04-04 | Phase 4 完成：PDF/Office/Text 7 个新文件 + detector OOXML 修复 + E2E 8/8 通过 |

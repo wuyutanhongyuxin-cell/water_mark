@@ -98,3 +98,22 @@
 - **问题**: `image_wm.py` 的 `logger.info()` 输出完整 employee_id，非审计日志可能被更多人访问
 - **修复**: 脱敏处理，如 `REVIEW001` → `RE***1`
 - **教训**: PII（个人可识别信息）在非审计日志中应脱敏
+
+---
+
+## 2026-04-04: Phase 4 PDF/Office/Text 水印开发发现
+
+### 18. PDF 纯白页面频域纹理不足导致 DWT-DCT-SVD 嵌入失败 (Critical)
+- **问题**: PDF 页面以大面积白色为主，DWT-DCT-SVD 算法需要足够的频域纹理才能稳定嵌入/提取。纯白页面嵌入后立即提取都返回 None
+- **修复**: 嵌入前对第一页添加微弱高斯噪声（sigma=3，PSNR≈40dB），使用固定种子确保可重复
+- **教训**: DWT-DCT-SVD 盲水印依赖图像纹理复杂度，低纹理图像（文档页面、纯色图）需要预处理
+
+### 19. cv2.imencode 内部已处理 BGR→RGB 转换 (Major)
+- **问题**: `cv2.imencode(".png", img)` 内部自动将 BGR 转为 RGB 写入 PNG。如果先手动 `cvtColor(BGR→RGB)` 再传给 imencode，通道会被二次交换导致颜色错误
+- **修复**: 直接将 BGR 数组传给 imencode，不做预转换
+- **教训**: 理解 OpenCV 的 BGR 约定——imencode/imwrite 内部处理转换，不要手动重复
+
+### 20. OOXML 检测：python-magic 可能返回 octet-stream 而非 zip (Major)
+- **问题**: 某些 DOCX/PPTX 文件被 python-magic-bin 检测为 `application/octet-stream` 而非 `application/zip`，导致 OOXML 特判不触发，路由失败
+- **修复**: 在 detector.py 的 OOXML 特判中增加 `application/octet-stream` 匹配
+- **教训**: python-magic-bin 对同类文件的检测结果不一致，OOXML 特判需要覆盖更多 fallback MIME 类型

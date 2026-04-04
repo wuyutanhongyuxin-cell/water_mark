@@ -7,51 +7,50 @@
 ```
 WatermarkBase (base.py)          ← 抽象基类，定义 embed/extract/verify 接口
   ├── ImageWatermark (image_wm)  ← ✅ Phase 2: DWT-DCT-SVD 图像盲水印
-  ├── PdfWatermark               ← Phase 4: PDF 图层+文本水印
-  ├── OfficeWatermark            ← Phase 4: DOCX/XLSX/PPTX 水印
+  ├── PdfWatermark (pdf_wm)      ← ✅ Phase 4: PDF 渲染→DWT-DCT-SVD→重建
+  ├── OfficeWatermark (office_wm)← ✅ Phase 4: DOCX/XLSX/PPTX 零宽字符水印
+  ├── TextWatermark (text_wm)    ← ✅ Phase 4: TXT/CSV/JSON/MD 零宽字符水印
   ├── AudioWatermark             ← Phase 5: 音频 DWT-DCT 水印
-  ├── VideoWatermark             ← Phase 5: 视频逐帧水印
-  └── TextWatermark              ← Phase 4: 零宽字符文本水印
+  └── VideoWatermark             ← Phase 5: 视频逐帧水印
 ```
 
 ## 文件清单
+
+### 核心模块
 - `base.py` — 抽象基类 + 数据结构（WatermarkPayload, EmbedResult, ExtractResult）（~200行）
-- `image_wm.py` — **图像盲水印** DWT-DCT-SVD，v2 加密 1024-bit 格式（~155行）
-- `payload_codec.py` — 水印载荷编解码器，v1/v2 格式处理（~126行）
+- `payload_codec.py` — 水印载荷编解码器，v1/v2 加密格式处理（~135行）
+- `zwc_codec.py` — **零宽字符编解码器**，text_wm 和 office_wm 共用（~93行）
 
-## ImageWatermark 技术细节
+### 处理器
+- `image_wm.py` — **图像盲水印** DWT-DCT-SVD，v2 加密 1024-bit 格式（~172行）
+- `text_wm.py` — **纯文本水印** 零宽字符，支持 TXT/CSV/JSON/MD（~124行）
+- `pdf_wm.py` — **PDF 盲水印** 渲染→噪声→DWT-DCT-SVD→重建（~197行）
+- `office_wm.py` — **Office 水印调度器** 分发到 DOCX/XLSX/PPTX handler（~106行）
 
-### 算法
-```
-嵌入: 原图 → DWT → DCT → SVD → 修改奇异值 → 逆变换 → 水印图
-提取: 水印图 → DWT → DCT → SVD → 读取奇异值差异 → 恢复比特
-```
+### Office 格式处理器（内部模块）
+- `_docx_handler.py` — DOCX 格式读写，修改 run.text 保持格式（~76行）
+- `_xlsx_handler.py` — XLSX 格式读写，修改字符串 cell（~81行）
+- `_pptx_handler.py` — PPTX 格式读写，遍历 slide→shape→run（~88行）
 
-### 载荷编码（v2 加密格式）
+## 技术细节
+
+### 载荷编码（v2 加密格式，所有处理器共用）
 - 固定 128 字节 = 1024 bits
 - 格式: `[version 1B][key_id 1B][encrypted_len 1B][AES-GCM 密文][padding]`
 - AES-256-GCM 加密，密钥由 key_manager 管理
-- 兼容 v1 (512-bit 明文 JSON) 回退提取
-- 最小图像尺寸：257x257（block_num 需 > 1024）
 
-### 强度映射
-| 级别 | d1/d2 | PSNR (1024-bit) | 适用场景 |
-|------|-------|------|---------|
-| LOW | 15/8 | ~44dB | 高质量要求，低攻击风险 |
-| MEDIUM | 36/20 | ~37dB | 平衡（默认） |
-| HIGH | 64/36 | ~30dB | 高攻击风险，需最大鲁棒性 |
+### 零宽字符编码（text_wm / office_wm）
+- 协议: `[ZWJ 开始标记][1024 个 ZWC 字符][WJ 结束标记]`
+- ZWC_BIT_0 = U+200B, ZWC_BIT_1 = U+200C
+- 肉眼完全不可见，程序精确提取
 
-### 鲁棒性（MEDIUM 强度）
-| 攻击 | 结果 |
-|------|------|
-| JPEG Q≥80 | ✅ 通过 |
-| 缩放 0.5x~2.0x | ✅ 通过 |
-| PNG 无损 | ✅ 通过 |
-| BMP 无损 | ✅ 通过 |
-| JPEG Q<60 | ❌ 失败 |
+### PDF 水印特殊处理
+- 输出为纯图像 PDF（丢失文本可选性，最大化鲁棒性）
+- 嵌入前添加微弱高斯噪声（sigma=3，PSNR≈40dB）提供频域纹理
+- 固定 200 DPI 渲染，嵌入/提取必须一致
 
 ## 依赖关系
-- 本目录依赖：blind-watermark, opencv-python-headless, numpy, `src.security`
+- 本目录依赖：blind-watermark, opencv-python-headless, numpy, PyMuPDF, python-docx, openpyxl, python-pptx, `src.security`
 - 被以下模块依赖：`src.core.router`、`src.core.embedder`、`src.core.extractor`
 
 ## 新增水印处理器 Checklist
