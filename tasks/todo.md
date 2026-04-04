@@ -83,11 +83,19 @@
 - [x] 13 项修复：audit 竞态、AI 不降级安全、prompt injection 防护、bool 类型安全、异常隔离等
 - [x] 审查后回归测试 6/6 通过（导入+清洗+规则引擎+合并+类型安全+降级）
 
-## Phase 7: CLI + 自动化
-- [ ] `src/main.py` — CLI 命令（embed / extract / verify / batch）
-- [ ] 批量处理：扫描目录自动加水印
-- [ ] 半自动模式：DeepSeek 建议 + 人工确认
-- [ ] 全自动模式：按规则自动处理
+## Phase 7: CLI + 自动化 ✅
+- [x] `src/cli/__init__.py` — 共享 CLI 工具：颜色输出、结果格式化、强度解析（~150行）
+- [x] `src/cli/scan.py` — 目录扫描：从 rules.yaml 动态读取扩展名、过滤隐藏文件（~100行）
+- [x] `src/main.py` — Click group + embed/extract 命令（~110行）
+- [x] `src/cli/verify_cmd.py` — verify 命令：单文件+目录批量验证+JSON输出（~120行）
+- [x] `src/cli/batch_cmd.py` — batch 命令：auto/semi/manual 三模式+dry-run（~190行）
+- [x] `src/cli/README.md` — CLI 模块文档
+- [x] 零新依赖：Click 已在 requirements.txt
+- [x] E2E 测试：embed→extract→verify 往返通过（文本文件）
+- [x] batch auto 模式：2文件批量嵌入+验证全部通过
+- [x] batch dry-run：文件列表+统计正确
+- [x] 错误场景：不存在文件/错误ID/空目录 全部正确处理
+- [x] 退出码：0=全成功, 1=部分失败, 2=全失败
 
 ## Phase 8: 测试 + 文档
 - [ ] 所有模块的单元测试
@@ -110,3 +118,4 @@
 | 2026-04-04 | Phase 5 代码审查：Codex+Sonnet 双审 → Opus 裁决，15 项修复 + E2E 6/6 回归通过 |
 | 2026-04-04 | Phase 6 完成：DeepSeek AI 集成，4 个新文件 + 3 个修改，graceful degradation + 规则引擎 + JSON 解析全部测试通过 |
 | 2026-04-05 | Phase 6 代码审查：Codex gpt-5.3-codex + Sonnet 4.6 双审 → Opus 4.6 裁决，13 项修复 + 回归 6/6 通过 |
+| 2026-04-05 | Phase 7 完成：CLI 4 命令(embed/extract/verify/batch) + 3 模式(auto/semi/manual) + 目录扫描，6 个新文件，E2E 全部通过 |
