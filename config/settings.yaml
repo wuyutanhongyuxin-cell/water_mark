@@ -30,9 +30,12 @@ ai:
 
 # 安全设置
 security:
-  encryption: "AES-256"         # 水印载荷加密算法
-  key_storage: "keys"           # 密钥存放目录
-  error_correction: "BCH"       # 纠错编码方式
+  encryption: "AES-256-GCM"     # 水印载荷加密算法
+  encryption_enabled: true      # 是否启用加密（v2 格式）
+  default_key_id: 0             # 默认密钥编号
+  payload_version: 2            # 载荷版本（2=加密, 1=明文）
+  key_storage: "config/keys"    # 密钥存放目录
+  error_correction: "BCH"       # 纠错编码方式（后续实现）
 
 # 批量处理
 batch:

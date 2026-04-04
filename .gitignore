@@ -41,6 +41,7 @@ htmlcov/
 *.key
 *.pem
 keys/
+config/keys/
 
 # Claude Code 内部文件
 .claude/

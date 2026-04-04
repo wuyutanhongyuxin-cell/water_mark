@@ -1,10 +1,6 @@
 """
-文件类型检测模块。
-
-检测流程（双重验证）：
-1. magic bytes（文件头）→ MIME 类型
-2. 文件扩展名 → 预期 MIME 类型
-3. 两者一致 → 确认；不一致 → 以 magic bytes 为准 + 告警
+文件类型检测模块（双重验证：magic bytes + 扩展名）。
+一致 → 确认；不一致 → 以 magic bytes 为准 + 告警。
 """
 
 from dataclasses import dataclass
@@ -82,11 +78,18 @@ class DetectionResult:
 
 
 def _detect_by_magic(file_path: Path) -> Optional[str]:
-    """通过 magic bytes 检测 MIME。优先 python-magic-bin，回退 filetype。"""
-    # 方案1：python-magic-bin（最精确）
+    """通过 magic bytes 检测 MIME。读取文件头后检测，避免中文路径问题。"""
+    # 先读取文件头 8KB（绕过 python-magic 不支持中文路径的 bug）
+    try:
+        header = file_path.read_bytes()[:8192]
+    except OSError as e:
+        logger.warning(f"Cannot read file header: {e}")
+        return None
+
+    # 方案1：python-magic-bin（使用 from_buffer 避免路径编码问题）
     try:
         import magic
-        mime = magic.from_file(str(file_path), mime=True)
+        mime = magic.from_buffer(header, mime=True)
         if mime:
             return mime
     except ImportError:
@@ -94,10 +97,10 @@ def _detect_by_magic(file_path: Path) -> Optional[str]:
     except Exception as e:
         logger.warning(f"magic detection failed: {e}")
 
-    # 方案2：filetype（纯 Python 回退）
+    # 方案2：filetype（直接传入 bytes，同样避免路径问题）
     try:
         import filetype
-        kind = filetype.guess(str(file_path))
+        kind = filetype.guess(header)
         if kind is not None:
             return kind.mime
     except ImportError:

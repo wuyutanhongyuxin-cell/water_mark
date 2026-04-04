@@ -28,11 +28,17 @@
 - [x] PSNR 质量评估：LOW=44dB, MEDIUM=37dB, HIGH=33dB
 - [x] 统一 API 集成测试 5/5 通过（embedder→auto_verify→extractor）
 
-## Phase 3: 安全模块
-- [ ] `src/security/crypto.py` — AES-256 水印加密
-- [ ] `src/security/key_manager.py` — 密钥管理
-- [ ] `src/security/audit.py` — 审计日志
-- [ ] `src/core/verifier.py` — 嵌入后自动校验
+## Phase 3: 安全模块 + 中文路径修复 ✅
+- [x] 修复 `src/core/detector.py` — magic.from_file→from_buffer 中文路径兼容
+- [x] `src/security/crypto.py` — AES-256-GCM 加密/解密（~85行）
+- [x] `src/security/key_manager.py` — 密钥管理：环境变量/文件/自动生成（~105行）
+- [x] `src/security/audit.py` — 结构化审计日志 loguru sink（~105行）
+- [x] `src/watermarks/image_wm.py` — v2 加密格式 1024-bit，兼容 v1 回退
+- [x] `src/core/embedder.py` + `extractor.py` — 审计日志集成
+- [x] `src/core/verifier.py` — 独立验证接口 + 批量验证（~110行）
+- [x] 端到端验证：中文路径 + 加密嵌入 + 提取 + 验证 + 审计日志
+- [x] image_wm.py 拆分 payload_codec.py（246→139+126 行）
+- [x] cv2 中文路径修复：imdecode/imencode + embed_img 参数
 
 ## Phase 4: PDF + Office 水印
 - [ ] `src/watermarks/pdf_wm.py` — PDF 盲水印
@@ -70,3 +76,4 @@
 | 2026-04-03 | Phase 1 核心框架完成：detector/router/embedder/extractor + 配置 + 10项测试通过 |
 | 2026-04-03 | Phase 1 代码审查（GPT-5.4+Sonnet4.6+Opus4.6 三方审查）+ 13项修复 |
 | 2026-04-03 | Phase 2 图像盲水印完成：DWT-DCT-SVD + 鲁棒性测试 + 集成测试 |
+| 2026-04-04 | Phase 3 安全模块完成：AES-256-GCM + 密钥管理 + 审计日志 + 中文路径修复 |

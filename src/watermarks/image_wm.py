@@ -2,10 +2,11 @@
 图像盲水印处理器（DWT-DCT-SVD）。
 
 使用 blind-watermark 库实现频域盲水印嵌入与提取。
-载荷采用固定 512-bit 编码，提取时无需存储 wm_size。
+v2 格式：1024-bit 载荷，AES-256-GCM 加密。
+v1 兼容：512-bit 明文 JSON（Phase 2 遗留，回退解码）。
+载荷编解码逻辑见 payload_codec.py。
 """
 
-import json
 from pathlib import Path
 from typing import Optional
 
@@ -22,20 +23,19 @@ from src.watermarks.base import (
     WatermarkBase, WatermarkStrength,
     WatermarkPayload, EmbedResult, ExtractResult,
 )
+from src.watermarks.payload_codec import (
+    payload_to_bits, bits_to_payload, decode_v1_json,
+    bits_to_bytes, _PAYLOAD_BITS, _LEGACY_PAYLOAD_BITS,
+)
 
-# 固定载荷编码长度：64 字节 = 512 bits
-# 足够存储 employee_id + timestamp + file_hash 的压缩 JSON
-_PAYLOAD_BYTES = 64
-_PAYLOAD_BITS = _PAYLOAD_BYTES * 8
-
-# 嵌入强度映射：(d1, d2) — d1/d2 越大越鲁棒但 PSNR 越低
+# 嵌入强度映射：(d1, d2) — 越大越鲁棒但 PSNR 越低
 _STRENGTH_MAP = {
-    WatermarkStrength.LOW: (15, 8),       # PSNR ~47dB，低鲁棒性
-    WatermarkStrength.MEDIUM: (36, 20),   # PSNR ~38dB，平衡（默认）
-    WatermarkStrength.HIGH: (64, 36),     # PSNR ~33dB，高鲁棒性
+    WatermarkStrength.LOW: (15, 8),       # PSNR ~44dB
+    WatermarkStrength.MEDIUM: (36, 20),   # PSNR ~34dB (1024-bit)
+    WatermarkStrength.HIGH: (64, 36),     # PSNR ~30dB
 }
 
-# 固定密码种子（后续可由 security 模块管理）
+# 固定密码种子（blind-watermark 内部参数）
 _PASSWORD_WM = 20260403
 _PASSWORD_IMG = 20260403
 
@@ -45,62 +45,75 @@ class ImageWatermark(WatermarkBase):
 
     def embed(self, input_path: Path, payload: WatermarkPayload,
               output_path: Path) -> EmbedResult:
-        """将水印嵌入图像文件。"""
-        # 1. 序列化载荷为固定长度 bit 数组
+        """将水印嵌入图像文件（v2 加密格式）。"""
         try:
-            bits = _payload_to_bits(payload)
+            bits = payload_to_bits(payload)
         except ValueError as e:
             return EmbedResult(success=False, message=str(e))
 
-        # 2. 配置 blind-watermark 引擎
+        # 配置 blind-watermark 引擎
         bwm = WaterMark(password_wm=_PASSWORD_WM, password_img=_PASSWORD_IMG)
         d1, d2 = _STRENGTH_MAP[self.strength]
         bwm.bwm_core.d1 = d1
         bwm.bwm_core.d2 = d2
 
-        # 3. 读取原图 + 嵌入水印
-        bwm.read_img(filename=str(input_path))
+        # 读取原图（用 imdecode 支持中文路径）+ 嵌入水印
+        img = _imread_safe(input_path)
+        if img is None:
+            return EmbedResult(success=False, message=f"Cannot read image: {input_path}")
+        bwm.bwm_core.read_img_arr(img)
         bwm.read_wm(bits, mode='bit')
-        embed_img = bwm.embed(filename=str(output_path))
+        # embed() 不传 filename，手动写入以支持中文输出路径
+        embed_img = bwm.embed()
+        if not _imwrite_safe(output_path, embed_img):
+            return EmbedResult(success=False, message=f"Failed to write image: {output_path}")
 
-        # 4. 计算质量指标（PSNR）
-        metrics = _calc_quality(str(input_path), embed_img)
-
+        metrics = _calc_quality(img, embed_img)
         logger.info(
-            f"Image watermark embedded: {input_path.name} "
+            f"Image watermark embedded (v2): {input_path.name} "
             f"(d1={d1}, PSNR={metrics.get('psnr', 'N/A')}dB)"
         )
         return EmbedResult(
             success=True, output_path=output_path,
-            message=f"Embedded (PSNR={metrics.get('psnr', 'N/A')}dB)",
+            message=f"Embedded v2 (PSNR={metrics.get('psnr', 'N/A')}dB)",
             quality_metrics=metrics,
         )
 
     def extract(self, file_path: Path) -> ExtractResult:
-        """从图像文件中提取水印。"""
-        # 1. 配置引擎（密码和强度必须与嵌入时一致）
+        """从图像文件中提取水印（自动识别 v1/v2 格式）。"""
         bwm = WaterMark(password_wm=_PASSWORD_WM, password_img=_PASSWORD_IMG)
         d1, d2 = _STRENGTH_MAP[self.strength]
         bwm.bwm_core.d1 = d1
         bwm.bwm_core.d2 = d2
 
-        # 2. 提取 bit 数组
+        # 读取图像（imdecode 支持中文路径）
+        img = _imread_safe(file_path)
+        if img is None:
+            return ExtractResult(
+                success=False, confidence=0.0,
+                message=f"Cannot read image: {file_path}",
+            )
+
+        # 先尝试 v2 (1024 bits)，用 embed_img 参数避免内部 cv2.imread
         raw = bwm.extract(
-            filename=str(file_path),
-            wm_shape=_PAYLOAD_BITS,
-            mode='bit',
+            embed_img=img, wm_shape=_PAYLOAD_BITS, mode='bit',
         )
         bits = (np.array(raw) > 0.5).astype(int).tolist()
+        payload = bits_to_payload(bits)
 
-        # 3. 反序列化为 WatermarkPayload
-        payload = _bits_to_payload(bits)
+        # v2 失败则回退 v1 (512 bits)
+        if payload is None:
+            payload = _decode_legacy(img, bwm)
+
         if payload is None:
             return ExtractResult(
                 success=False, confidence=0.0,
                 message="Failed to decode watermark from image",
             )
 
-        logger.info(f"Extracted watermark from {file_path.name}: {payload.employee_id}")
+        eid = payload.employee_id
+        masked_id = eid[:2] + "***" + eid[-1:] if len(eid) > 3 else "***"
+        logger.info(f"Extracted watermark from {file_path.name}: {masked_id}")
         return ExtractResult(
             success=True, payload=payload, confidence=1.0,
             message=f"Employee: {payload.employee_id}",
@@ -114,65 +127,41 @@ class ImageWatermark(WatermarkBase):
 # ==================== 内部工具函数 ====================
 
 
-def _payload_to_bits(payload: WatermarkPayload) -> list[int]:
-    """将 WatermarkPayload 序列化为固定 512-bit 数组。"""
-    # 压缩 JSON：用短键名减少空间占用
-    data = {
-        "e": payload.employee_id,
-        "t": payload.timestamp,
-        "h": payload.file_hash,
-    }
-    json_bytes = json.dumps(data, separators=(",", ":")).encode("utf-8")
-
-    if len(json_bytes) > _PAYLOAD_BYTES:
-        raise ValueError(
-            f"Payload too large: {len(json_bytes)} bytes > {_PAYLOAD_BYTES} limit. "
-            f"Shorten employee_id or custom_data."
-        )
-
-    # 用 0x00 填充到固定长度
-    padded = json_bytes.ljust(_PAYLOAD_BYTES, b"\x00")
-
-    # 每字节展开为 8 bits（大端序）
-    bits = []
-    for byte_val in padded:
-        for i in range(7, -1, -1):
-            bits.append((byte_val >> i) & 1)
-    return bits
-
-
-def _bits_to_payload(bits: list[int]) -> Optional[WatermarkPayload]:
-    """将 512-bit 数组反序列化为 WatermarkPayload。失败返回 None。"""
-    # bits → bytes
-    raw_bytes = bytearray()
-    for i in range(0, len(bits), 8):
-        byte_val = 0
-        for j in range(8):
-            if i + j < len(bits):
-                byte_val = (byte_val << 1) | bits[i + j]
-        raw_bytes.append(byte_val)
-
-    # 去掉 0x00 填充，尝试 JSON 解析
-    json_bytes = bytes(raw_bytes).rstrip(b"\x00")
+def _imread_safe(path: Path) -> Optional[np.ndarray]:
+    """读取图像，用 imdecode 支持中文路径（cv2.imread 不支持）。"""
     try:
-        data = json.loads(json_bytes.decode("utf-8"))
-        return WatermarkPayload(
-            employee_id=data.get("e", ""),
-            timestamp=data.get("t", ""),
-            file_hash=data.get("h", ""),
-        )
-    except (json.JSONDecodeError, UnicodeDecodeError, KeyError):
+        buf = np.frombuffer(Path(path).read_bytes(), dtype=np.uint8)
+        return cv2.imdecode(buf, cv2.IMREAD_COLOR)
+    except Exception as e:
+        logger.warning(f"Failed to read image {path}: {e}")
         return None
 
 
-def _calc_quality(original_path: str, embed_img: np.ndarray) -> dict:
+def _imwrite_safe(path: Path, img: np.ndarray) -> bool:
+    """写入图像，用 imencode 支持中文路径（cv2.imwrite 不支持）。"""
+    ext = Path(path).suffix or ".png"
+    success, buf = cv2.imencode(ext, img)
+    if success:
+        Path(path).write_bytes(buf.tobytes())
+    return success
+
+
+def _decode_legacy(img: np.ndarray, bwm: WaterMark) -> Optional[WatermarkPayload]:
+    """回退尝试 v1 (512 bits) 提取。Phase 2 旧水印兼容。"""
+    try:
+        raw = bwm.extract(
+            embed_img=img, wm_shape=_LEGACY_PAYLOAD_BITS, mode='bit',
+        )
+        bits = (np.array(raw) > 0.5).astype(int).tolist()
+        return decode_v1_json(bits_to_bytes(bits))
+    except Exception:
+        return None
+
+
+def _calc_quality(original: np.ndarray, embed_img: np.ndarray) -> dict:
     """计算原图与水印图之间的 PSNR。"""
     try:
-        original = cv2.imread(original_path)
-        if original is None:
-            return {}
         watermarked = np.clip(embed_img, 0, 255).astype(np.uint8)
-        # 确保尺寸一致
         if original.shape != watermarked.shape:
             return {}
         psnr = cv2.PSNR(original, watermarked)

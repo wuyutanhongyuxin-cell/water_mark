@@ -11,6 +11,7 @@ from typing import Optional
 from loguru import logger
 
 from src.core.router import route_file
+from src.security.audit import log_extract
 from src.watermarks.base import ExtractResult, WatermarkStrength
 
 
@@ -65,17 +66,21 @@ def extract_watermark(
         result = route.processor.extract(file_path)
     except Exception as e:
         logger.exception(f"Extract failed for {file_path}: {e}")
+        log_extract(str(file_path), False, message=str(e))
         return ExtractResult(
             success=False,
             message=f"Extract error: {e}",
         )
 
     if result.success:
+        emp_id = result.payload.employee_id if result.payload else ""
+        log_extract(str(file_path), True, employee_id=emp_id)
         logger.info(
             f"Extracted watermark from {file_path.name} "
             f"(confidence={result.confidence:.2f})"
         )
     else:
+        log_extract(str(file_path), False, message=result.message)
         logger.warning(f"No watermark found in {file_path.name}")
 
     return result

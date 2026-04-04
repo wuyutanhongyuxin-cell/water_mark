@@ -12,6 +12,7 @@ import time
 from loguru import logger
 
 from src.core.router import route_file, load_settings
+from src.security.audit import log_embed
 from src.watermarks.base import (
     EmbedResult, WatermarkPayload, WatermarkStrength,
 )
@@ -45,6 +46,7 @@ def embed_watermark(
     # === 阶段0：安全前置检查（在路由之前完成） ===
     pre_err = _pre_checks(input_path, output_path, output_dir)
     if pre_err:
+        log_embed(str(input_path), payload.employee_id, False, message=pre_err)
         return EmbedResult(
             success=False, message=pre_err,
             elapsed_time=time.monotonic() - start_time,
@@ -63,6 +65,7 @@ def embed_watermark(
     # 输出路径安全检查
     path_err = _output_path_checks(input_path, output_path, settings)
     if path_err:
+        log_embed(str(input_path), payload.employee_id, False, message=path_err)
         return EmbedResult(
             success=False, message=path_err,
             elapsed_time=time.monotonic() - start_time,
@@ -72,11 +75,13 @@ def embed_watermark(
     try:
         route = route_file(input_path, strength=strength)
     except Exception as e:
+        log_embed(str(input_path), payload.employee_id, False, message=f"Routing error: {e}")
         return EmbedResult(
             success=False, message=f"Routing error: {e}",
             elapsed_time=time.monotonic() - start_time,
         )
     if route.processor is None:
+        log_embed(str(input_path), payload.employee_id, False, message=f"Routing failed: {route.error}")
         return EmbedResult(
             success=False, message=f"Routing failed: {route.error}",
             elapsed_time=time.monotonic() - start_time,
@@ -84,6 +89,7 @@ def embed_watermark(
 
     # 文件预检查（处理器级别）
     if not route.processor.validate_file(input_path):
+        log_embed(str(input_path), payload.employee_id, False, message="File validation failed")
         return EmbedResult(
             success=False, message=f"File validation failed: {input_path}",
             elapsed_time=time.monotonic() - start_time,
@@ -95,6 +101,7 @@ def embed_watermark(
     except Exception as e:
         logger.exception(f"Embed failed for {input_path}: {e}")
         _rollback(output_path)
+        log_embed(str(input_path), payload.employee_id, False, message=str(e))
         return EmbedResult(
             success=False, message=f"Embed error: {e}",
             elapsed_time=time.monotonic() - start_time,
@@ -104,6 +111,7 @@ def embed_watermark(
         _rollback(output_path)
         result.elapsed_time = time.monotonic() - start_time
         result.output_path = None
+        log_embed(str(input_path), payload.employee_id, False, message=result.message)
         return result
 
     # === 阶段3：自动验证（fail-closed） ===
@@ -111,12 +119,17 @@ def embed_watermark(
         verify_err = _auto_verify(route.processor, output_path, payload)
         if verify_err:
             _rollback(output_path)
+            log_embed(str(input_path), payload.employee_id, False, message=verify_err)
             return EmbedResult(
                 success=False, output_path=None, message=verify_err,
                 elapsed_time=time.monotonic() - start_time,
             )
 
     result.elapsed_time = time.monotonic() - start_time
+    log_embed(
+        str(input_path), payload.employee_id, True,
+        output_path=str(output_path), message=result.message,
+    )
     logger.info(
         f"Embedded watermark: {input_path.name} -> {output_path.name} "
         f"({result.elapsed_time:.2f}s)"
