@@ -40,8 +40,8 @@
 | PDF | **渲染→噪声→DWT-DCT-SVD→重建** | ✅ 已实现 |
 | DOCX/XLSX/PPTX | **零宽字符** 嵌入文本 run/cell | ✅ 已实现 |
 | TXT/CSV/JSON/MD | **零宽字符** 不可见 Unicode | ✅ 已实现 |
-| MP3/WAV/FLAC | **DWT-DCT 频域** | 📋 Phase 5 |
-| MP4/AVI/MKV | **逐帧 DWT-DCT-SVD** | 📋 Phase 5 |
+| WAV/FLAC | **DWT-DCT-QIM** 频域盲水印 | ✅ 已实现 |
+| MP4/AVI/MKV/MOV | **逐帧 DWT-DCT-SVD** + 多数表决 | ✅ 已实现 |
 
 ## 快速开始
 
@@ -112,18 +112,24 @@ watermark/
 │   │   ├── detector.py    # 文件类型检测（双重验证）
 │   │   ├── router.py      # 策略路由（类型→处理器）
 │   │   ├── embedder.py    # 统一嵌入接口
-│   │   └── extractor.py   # 统一提取接口
+│   │   ├── extractor.py   # 统一提取接口
+│   │   └── verifier.py    # 水印验证接口
 │   ├── watermarks/        # 水印处理器（策略模式）
 │   │   ├── base.py        # 抽象基类
-│   │   ├── payload_codec.py # 载荷编解码（v2 加密）
+│   │   ├── payload_codec.py # 载荷编解码（v2 加密 1024-bit）
+│   │   ├── _bwm_constants.py # blind-watermark 共享常量
 │   │   ├── zwc_codec.py   # 零宽字符编解码器
 │   │   ├── image_wm.py    # 图像盲水印（DWT-DCT-SVD）
 │   │   ├── pdf_wm.py      # PDF 盲水印（渲染→重建）
 │   │   ├── text_wm.py     # 纯文本水印（零宽字符）
 │   │   ├── office_wm.py   # Office 调度器
-│   │   └── _docx/_xlsx/_pptx_handler.py  # 格式处理器
+│   │   ├── _docx/_xlsx/_pptx_handler.py  # 格式处理器
+│   │   ├── audio_wm.py    # 音频盲水印（DWT-DCT-QIM）
+│   │   ├── _audio_core.py # 音频核心算法
+│   │   ├── video_wm.py    # 视频盲水印（逐帧 DWT-DCT-SVD）
+│   │   └── _video_core.py # 视频帧处理 + ffmpeg 工具
 │   ├── security/          # 安全模块
-│   │   ├── crypto.py      # AES-256 加密
+│   │   ├── crypto.py      # AES-256-GCM 加密
 │   │   ├── key_manager.py # 密钥管理
 │   │   └── audit.py       # 审计日志
 │   └── ai/                # AI 集成
@@ -154,14 +160,40 @@ watermark/
 - **DCT**：JPEG 压缩基于 DCT，天然抗 JPEG 压缩
 - **SVD**：奇异值极其稳定，抗各种信号处理攻击
 
+### DWT-DCT-QIM 音频盲水印
+
+```
+嵌入流程：
+音频信号 → 1D Haar DWT → detail 系数分块 → DCT → QIM 量化调制嵌入 → IDCT → IDWT → 水印音频
+
+提取流程：
+水印音频 → 1D Haar DWT → detail 系数分块 → DCT → QIM 提取比特 → 水印载荷
+```
+
+- 仅支持无损格式（WAV/FLAC），有损格式会破坏水印
+- 嵌入在左声道高频 detail 系数，SNR ~48dB（MEDIUM 强度）
+
+### 视频逐帧水印 + 多数表决
+
+```
+嵌入流程：
+视频 → 每 N 帧提取 → 帧级 DWT-DCT-SVD 嵌入 → FFV1 无损编码 → 合并音轨 → 输出
+
+提取流程：
+视频 → 每 N 帧提取 → 帧级 DWT-DCT-SVD 提取 → 多数表决投票 → 水印载荷
+```
+
+- FFV1 无损中间编码，保护帧间水印不被有损压缩破坏
+- 多帧多数表决提高鲁棒性，ffmpeg 可用时自动保留音轨
+
 ### 安全链路
 
 ```
 水印嵌入：
-载荷JSON → AES-256加密 → BCH纠错编码 → 嵌入文件
+载荷JSON → AES-256-GCM 加密 → 1024-bit 编码 → 嵌入文件
 
 水印提取：
-从文件提取 → BCH纠错解码 → AES-256解密 → 载荷JSON
+从文件提取 → 1024-bit 解码 → AES-256-GCM 解密 → 载荷JSON
 ```
 
 ## 开发进度
@@ -173,7 +205,7 @@ watermark/
 | Phase 2 | 图像盲水印 MVP（DWT-DCT-SVD, PSNR≥37dB） | ✅ 完成 |
 | Phase 3 | 安全模块（AES-256-GCM/密钥管理/审计日志） | ✅ 完成 |
 | Phase 4 | PDF + Office + Text 水印（8 种格式，E2E 8/8 通过） | ✅ 完成 |
-| Phase 5 | 音视频水印 | 📋 计划中 |
+| Phase 5 | 音视频水印（DWT-DCT-QIM + 逐帧 DWT-DCT-SVD）+ 三方代码审查 | ✅ 完成 |
 | Phase 6 | DeepSeek AI 集成 | 📋 计划中 |
 | Phase 7 | CLI + 自动化 | 📋 计划中 |
 | Phase 8 | 测试 + 文档 | 📋 计划中 |
@@ -183,12 +215,14 @@ watermark/
 | 分类 | 技术 |
 |------|------|
 | 语言 | Python 3.10+ |
-| 图像水印 | blind-watermark + invisible-watermark |
-| PDF | PyMuPDF + pdf2image |
+| 图像水印 | blind-watermark (DWT-DCT-SVD) |
+| PDF | PyMuPDF (渲染→DWT-DCT-SVD→重建) |
 | Office | python-docx / openpyxl / python-pptx |
 | 文本水印 | 自研零宽字符编码（zwc_codec） |
+| 音频水印 | soundfile + scipy (DWT-DCT-QIM) |
+| 视频水印 | opencv + blind-watermark + ffmpeg |
 | AI 集成 | DeepSeek API (OpenAI 兼容) |
-| 加密 | cryptography (AES-256) |
+| 加密 | cryptography (AES-256-GCM) |
 | 文件检测 | python-magic-bin + filetype |
 | CLI | click |
 

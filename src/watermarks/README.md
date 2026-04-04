@@ -37,7 +37,7 @@ WatermarkBase (base.py)          ← 抽象基类，定义 embed/extract/verify 
 - `_audio_core.py` — **音频核心算法** 1D Haar DWT + DCT + QIM，纯数值计算（~157行）
 - `audio_wm.py` — **音频盲水印** DWT-DCT-QIM，支持 WAV/FLAC（~192行）
 - `_video_core.py` — **视频帧处理** 复用 blind-watermark + ffmpeg 工具（~123行）
-- `video_wm.py` — **视频盲水印** 逐帧 DWT-DCT-SVD + 多数表决提取（~197行）
+- `video_wm.py` — **视频盲水印** 逐帧 DWT-DCT-SVD + 多数表决提取（~200行）
 
 ## 技术细节
 
