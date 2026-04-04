@@ -23,7 +23,9 @@ from src.cli._batch_helpers import (
     embed_one, check_ai_available, show_ai_suggestion,
     show_dry_run, parse_selection, exit_code,
 )
+from src.watermarks.base import WatermarkStrength
 from src.core.router import load_settings
+_STRENGTH_CHOICES = [s.value for s in WatermarkStrength]
 
 
 @click.command()
@@ -34,7 +36,7 @@ from src.core.router import load_settings
 @click.option("-o", "--output-dir", default=None,
               type=click.Path(), help="Output directory")
 @click.option("-s", "--strength", default=None,
-              type=click.Choice(["low", "medium", "high"]),
+              type=click.Choice(_STRENGTH_CHOICES),
               help="Watermark strength (default: from config)")
 @click.option("-m", "--mode", default="auto",
               type=click.Choice(["auto", "semi", "manual"]),

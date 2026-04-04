@@ -13,6 +13,23 @@ from loguru import logger
 from src.core.router import load_rules, load_settings
 
 
+def _build_ext_map() -> dict:
+    """
+    构建 扩展名→类别 的反向映射（一次构建，多处复用）。
+
+    Returns:
+        dict[str, str]: {".jpg": "image", ".pdf": "pdf", ...}
+    """
+    rules = load_rules()
+    ext_map = {}
+    for category, rule in rules.items():
+        if category == "unknown":
+            continue
+        for ext in rule.get("extensions", []):
+            ext_map[ext.lower()] = category
+    return ext_map
+
+
 def get_supported_extensions() -> set:
     """
     从 watermark_rules.yaml 动态读取所有支持的文件扩展名。
@@ -20,14 +37,7 @@ def get_supported_extensions() -> set:
     Returns:
         set[str]: 扩展名集合，如 {".jpg", ".png", ".pdf", ...}
     """
-    rules = load_rules()
-    extensions = set()
-    for category, rule in rules.items():
-        if category == "unknown":
-            continue
-        exts = rule.get("extensions", [])
-        extensions.update(ext.lower() for ext in exts)
-    return extensions
+    return set(_build_ext_map().keys())
 
 
 def _is_hidden(path: Path) -> bool:
@@ -113,21 +123,9 @@ def scan_summary(files: list) -> dict:
     Returns:
         dict: {"image": 5, "pdf": 3, "text": 2, ...}
     """
+    ext_map = _build_ext_map()
     counter = Counter()
     for f in files:
-        ext = f.suffix.lower()
-        # 简单归类（基于扩展名映射到大类）
-        category = _ext_to_category(ext)
+        category = ext_map.get(f.suffix.lower(), "unknown")
         counter[category] += 1
     return dict(counter)
-
-
-def _ext_to_category(ext: str) -> str:
-    """扩展名 → 大类映射。从 rules 动态读取。"""
-    rules = load_rules()
-    for category, rule in rules.items():
-        if category == "unknown":
-            continue
-        if ext in [e.lower() for e in rule.get("extensions", [])]:
-            return category
-    return "unknown"

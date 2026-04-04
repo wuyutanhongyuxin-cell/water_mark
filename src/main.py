@@ -20,7 +20,10 @@ from src.cli import (
     format_embed_result,
     format_extract_result,
 )
-from src.watermarks.base import WatermarkPayload
+from src.watermarks.base import WatermarkPayload, WatermarkStrength
+
+# 从枚举动态生成 Click 选项，避免硬编码字符串
+_STRENGTH_CHOICES = [s.value for s in WatermarkStrength]
 
 
 # ========== Click Group ==========
@@ -44,7 +47,7 @@ def cli():
 @click.option("-d", "--output-dir", default=None,
               type=click.Path(), help="Output directory")
 @click.option("-s", "--strength", default=None,
-              type=click.Choice(["low", "medium", "high"]),
+              type=click.Choice(_STRENGTH_CHOICES),
               help="Watermark strength (default: from config)")
 @click.option("--no-verify", is_flag=True, default=False,
               help="Skip post-embed verification")
@@ -93,7 +96,7 @@ def embed(input_path, employee, output_path, output_dir, strength, no_verify, cu
               type=click.Path(exists=True, dir_okay=False),
               help="Watermarked file path")
 @click.option("-s", "--strength", default=None,
-              type=click.Choice(["low", "medium", "high"]),
+              type=click.Choice(_STRENGTH_CHOICES),
               help="Watermark strength (default: from config)")
 @click.option("--json", "json_mode", is_flag=True, default=False,
               help="Output in JSON format")

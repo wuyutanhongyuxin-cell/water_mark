@@ -19,7 +19,10 @@ from src.cli import (
     format_batch_summary,
 )
 from src.cli.scan import scan_directory, scan_summary
+from src.watermarks.base import WatermarkStrength
 from src.core.verifier import verify_file, batch_verify, VerifyResult
+
+_STRENGTH_CHOICES = [s.value for s in WatermarkStrength]
 
 
 @click.command()
@@ -29,7 +32,7 @@ from src.core.verifier import verify_file, batch_verify, VerifyResult
 @click.option("-e", "--employee", default=None,
               help="Expected employee ID (optional)")
 @click.option("-s", "--strength", default=None,
-              type=click.Choice(["low", "medium", "high"]),
+              type=click.Choice(_STRENGTH_CHOICES),
               help="Watermark strength (default: from config)")
 @click.option("-r", "--recursive", is_flag=True, default=False,
               help="Recursively scan directory")
