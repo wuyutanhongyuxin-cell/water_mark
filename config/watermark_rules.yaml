@@ -45,8 +45,8 @@ rules:
 
   audio:
     processor: "audio_wm.AudioWatermark"
-    algorithm: "DWT-DCT"
-    extensions: [".mp3", ".wav", ".flac", ".ogg"]
+    algorithm: "DWT-DCT-QIM"
+    extensions: [".wav", ".flac"]
     params:
       sample_rate: 44100
       embed_band: "mid"       # 嵌入频段

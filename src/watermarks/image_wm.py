@@ -25,19 +25,9 @@ from src.watermarks.base import (
 )
 from src.watermarks.payload_codec import (
     payload_to_bits, bits_to_payload, decode_v1_json,
-    bits_to_bytes, _PAYLOAD_BITS, _LEGACY_PAYLOAD_BITS,
+    bits_to_bytes, PAYLOAD_BITS, _LEGACY_PAYLOAD_BITS,
 )
-
-# 嵌入强度映射：(d1, d2) — 越大越鲁棒但 PSNR 越低
-_STRENGTH_MAP = {
-    WatermarkStrength.LOW: (15, 8),       # PSNR ~44dB
-    WatermarkStrength.MEDIUM: (36, 20),   # PSNR ~34dB (1024-bit)
-    WatermarkStrength.HIGH: (64, 36),     # PSNR ~30dB
-}
-
-# 固定密码种子（blind-watermark 内部参数）
-_PASSWORD_WM = 20260403
-_PASSWORD_IMG = 20260403
+from src.watermarks._bwm_constants import PASSWORD_WM, PASSWORD_IMG, STRENGTH_MAP
 
 
 class ImageWatermark(WatermarkBase):
@@ -52,8 +42,8 @@ class ImageWatermark(WatermarkBase):
             return EmbedResult(success=False, message=str(e))
 
         # 配置 blind-watermark 引擎
-        bwm = WaterMark(password_wm=_PASSWORD_WM, password_img=_PASSWORD_IMG)
-        d1, d2 = _STRENGTH_MAP[self.strength]
+        bwm = WaterMark(password_wm=PASSWORD_WM, password_img=PASSWORD_IMG)
+        d1, d2 = STRENGTH_MAP[self.strength]
         bwm.bwm_core.d1 = d1
         bwm.bwm_core.d2 = d2
 
@@ -81,8 +71,8 @@ class ImageWatermark(WatermarkBase):
 
     def extract(self, file_path: Path) -> ExtractResult:
         """从图像文件中提取水印（自动识别 v1/v2 格式）。"""
-        bwm = WaterMark(password_wm=_PASSWORD_WM, password_img=_PASSWORD_IMG)
-        d1, d2 = _STRENGTH_MAP[self.strength]
+        bwm = WaterMark(password_wm=PASSWORD_WM, password_img=PASSWORD_IMG)
+        d1, d2 = STRENGTH_MAP[self.strength]
         bwm.bwm_core.d1 = d1
         bwm.bwm_core.d2 = d2
 
@@ -96,7 +86,7 @@ class ImageWatermark(WatermarkBase):
 
         # 先尝试 v2 (1024 bits)，用 embed_img 参数避免内部 cv2.imread
         raw = bwm.extract(
-            embed_img=img, wm_shape=_PAYLOAD_BITS, mode='bit',
+            embed_img=img, wm_shape=PAYLOAD_BITS, mode='bit',
         )
         bits = (np.array(raw) > 0.5).astype(int).tolist()
         payload = bits_to_payload(bits)

@@ -39,6 +39,10 @@ click>=8.1.0
 # === AI 集成（DeepSeek API，OpenAI 兼容） ===
 openai>=1.0.0
 
+# === 音频水印 ===
+scipy>=1.11.0            # DCT/IDCT 用于音频水印
+soundfile>=0.12.0        # WAV/FLAC/OGG 音频读写
+
 # === 测试 ===
 pytest>=7.4.0
 pytest-cov>=4.1.0

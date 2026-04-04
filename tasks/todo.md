@@ -52,9 +52,19 @@
 - [x] PDF 纯白页面频域不足问题：嵌入前加微弱高斯噪声（sigma=3）
 - [x] 端到端集成测试 8/8 通过（TXT/CSV/JSON/MD/DOCX/XLSX/PPTX/PDF）
 
-## Phase 5: 音视频水印
-- [ ] `src/watermarks/audio_wm.py` — 音频 DWT-DCT 水印
-- [ ] `src/watermarks/video_wm.py` — 视频逐帧水印
+## Phase 5: 音视频水印 ✅ (代码审查后修复)
+- [x] `src/watermarks/_audio_core.py` — 音频核心算法 DWT-DCT-QIM（~157行）
+- [x] `src/watermarks/audio_wm.py` — 音频盲水印处理器 WAV/FLAC（~192行）
+- [x] `src/watermarks/_video_core.py` — 视频帧处理 + ffmpeg 工具（~123行）
+- [x] `src/watermarks/video_wm.py` — 视频盲水印逐帧嵌入 + 多数表决（~197行）
+- [x] 新增依赖：scipy + soundfile
+- [x] 修复 detector.py 添加 `audio/x-flac` MIME 变体
+- [x] OGG Vorbis 有损格式排除（与 MP3 同理）
+- [x] FFV1 无损中间编码（解决 MJPG 有损破坏水印问题）
+- [x] E2E 集成测试：WAV/FLAC/AVI 3/3 通过（embedder API + 自动验证 + 审计日志）
+- [x] Codex gpt-5.3-codex + Sonnet 4.6 双模型代码审查 → Opus 4.6 最终裁决
+- [x] 15 项修复：YAML 配置对齐、DRY 常量提取、边界防护、资源清理、日志改善
+- [x] 审查后 E2E 回归测试 6/6 通过（图像+音频+视频+API 集成）
 
 ## Phase 6: DeepSeek AI 集成
 - [ ] `src/ai/deepseek_client.py` — API 客户端
@@ -85,3 +95,5 @@
 | 2026-04-03 | Phase 2 图像盲水印完成：DWT-DCT-SVD + 鲁棒性测试 + 集成测试 |
 | 2026-04-04 | Phase 3 安全模块完成：AES-256-GCM + 密钥管理 + 审计日志 + 中文路径修复 |
 | 2026-04-04 | Phase 4 完成：PDF/Office/Text 7 个新文件 + detector OOXML 修复 + E2E 8/8 通过 |
+| 2026-04-04 | Phase 5 完成：音频 DWT-DCT-QIM + 视频逐帧 DWT-DCT-SVD + 多数表决，E2E WAV/FLAC/AVI 3/3 通过 |
+| 2026-04-04 | Phase 5 代码审查：Codex+Sonnet 双审 → Opus 裁决，15 项修复 + E2E 6/6 回归通过 |

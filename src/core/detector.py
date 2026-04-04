@@ -27,7 +27,7 @@ FILE_CATEGORIES = {
     ],
     "audio": [
         "audio/mpeg", "audio/wav", "audio/x-wav",
-        "audio/flac", "audio/ogg",
+        "audio/flac", "audio/x-flac", "audio/ogg",
     ],
     "video": [
         "video/mp4", "video/x-msvideo", "video/x-matroska",

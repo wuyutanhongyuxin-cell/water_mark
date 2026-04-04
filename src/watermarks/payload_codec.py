@@ -17,6 +17,7 @@ from src.watermarks.base import WatermarkPayload
 # === v2 载荷编码：128 字节 = 1024 bits ===
 _PAYLOAD_BYTES = 128
 _PAYLOAD_BITS = _PAYLOAD_BYTES * 8
+PAYLOAD_BITS = _PAYLOAD_BITS   # 公开导出供外部模块引用
 
 # v1 遗留参数（回退提取用）
 _LEGACY_PAYLOAD_BITS = 64 * 8  # 512 bits
