@@ -66,11 +66,22 @@
 - [x] 15 项修复：YAML 配置对齐、DRY 常量提取、边界防护、资源清理、日志改善
 - [x] 审查后 E2E 回归测试 6/6 通过（图像+音频+视频+API 集成）
 
-## Phase 6: DeepSeek AI 集成
-- [ ] `src/ai/deepseek_client.py` — API 客户端
-- [ ] 文件敏感度分析功能
-- [ ] 智能水印策略建议
-- [ ] 异常/攻击检测
+## Phase 6: DeepSeek AI 集成 ✅ (代码审查后修复)
+- [x] `src/ai/ai_types.py` — SensitivityResult + AnomalyResult 数据类（~48行）
+- [x] `src/ai/_sanitize.py` — 共享输入清洗工具，防 prompt injection（~25行）
+- [x] `src/ai/deepseek_client.py` — API 客户端，懒加载+审计（~143行）
+- [x] `src/ai/sensitivity.py` — 文件敏感度分析+策略建议，仅发元数据（~144行）
+- [x] `src/ai/anomaly.py` — 异常/攻击检测，规则引擎+AI 双引擎+合并策略（~195行）
+- [x] `src/security/audit.py` — 新增 `log_ai_call()` 审计 + 初始化竞态修复（~142行）
+- [x] `src/core/embedder.py` — AI 强度建议 hook（仅升级不降级）（~200行）
+- [x] `src/core/extractor.py` — AI 异常检测 hook + 文件大小检查（~135行）
+- [x] `config/settings.yaml` — 新增 temperature 配置
+- [x] Graceful degradation 验证：AI 禁用时全部返回安全默认值
+- [x] 规则引擎测试：4 种 confidence 场景全部通过
+- [x] JSON 解析测试：正常/非法值/非JSON/None 4 种场景通过
+- [x] Codex gpt-5.3-codex + Sonnet 4.6 双模型代码审查 → Opus 4.6 最终裁决
+- [x] 13 项修复：audit 竞态、AI 不降级安全、prompt injection 防护、bool 类型安全、异常隔离等
+- [x] 审查后回归测试 6/6 通过（导入+清洗+规则引擎+合并+类型安全+降级）
 
 ## Phase 7: CLI + 自动化
 - [ ] `src/main.py` — CLI 命令（embed / extract / verify / batch）
@@ -97,3 +108,5 @@
 | 2026-04-04 | Phase 4 完成：PDF/Office/Text 7 个新文件 + detector OOXML 修复 + E2E 8/8 通过 |
 | 2026-04-04 | Phase 5 完成：音频 DWT-DCT-QIM + 视频逐帧 DWT-DCT-SVD + 多数表决，E2E WAV/FLAC/AVI 3/3 通过 |
 | 2026-04-04 | Phase 5 代码审查：Codex+Sonnet 双审 → Opus 裁决，15 项修复 + E2E 6/6 回归通过 |
+| 2026-04-04 | Phase 6 完成：DeepSeek AI 集成，4 个新文件 + 3 个修改，graceful degradation + 规则引擎 + JSON 解析全部测试通过 |
+| 2026-04-05 | Phase 6 代码审查：Codex gpt-5.3-codex + Sonnet 4.6 双审 → Opus 4.6 裁决，13 项修复 + 回归 6/6 通过 |

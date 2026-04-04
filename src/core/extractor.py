@@ -6,14 +6,12 @@
 """
 
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 
-from src.core.router import route_file
+from src.core.router import route_file, load_settings
 from src.security.audit import log_extract
 from src.watermarks.base import ExtractResult, WatermarkStrength
-
 
 
 def extract_watermark(
@@ -42,6 +40,19 @@ def extract_watermark(
         return ExtractResult(success=False, message=f"File not found: {file_path}")
     if not file_path.is_file():
         return ExtractResult(success=False, message=f"Not a file: {file_path}")
+
+    # 0.1 文件大小检查（与 embedder 对齐，防 DoS）
+    settings = load_settings()
+    max_mb = settings.get("watermark", {}).get("max_file_size_mb", 500)
+    try:
+        size_mb = file_path.stat().st_size / (1024 * 1024)
+    except OSError:
+        return ExtractResult(success=False, message=f"Cannot stat file: {file_path}")
+    if size_mb > max_mb:
+        return ExtractResult(
+            success=False,
+            message=f"File too large: {size_mb:.1f}MB > {max_mb}MB limit",
+        )
 
     # 1. 路由匹配
     try:
@@ -72,6 +83,19 @@ def extract_watermark(
             message=f"Extract error: {e}",
         )
 
+    # AI 异常检测（opt-in, graceful degradation）
+    # NOTE: 延迟导入 src.ai 以避免循环依赖：extractor → ai.anomaly → watermarks.base
+    try:
+        from src.ai import detect_anomaly
+        _anomaly = detect_anomaly(result, file_name=file_path.name)
+        if _anomaly.has_anomaly:
+            logger.warning(
+                f"Anomaly: {file_path.name} - "
+                f"{_anomaly.anomaly_type} ({_anomaly.risk_level})"
+            )
+    except Exception as _ai_err:
+        logger.warning(f"AI anomaly detection failed (non-fatal): {type(_ai_err).__name__}")
+
     if result.success:
         emp_id = result.payload.employee_id if result.payload else ""
         log_extract(str(file_path), True, employee_id=emp_id)
@@ -92,9 +116,10 @@ def verify_watermark(
     strength: WatermarkStrength = WatermarkStrength.MEDIUM,
 ) -> bool:
     """
-    验证文件中是否包含指定员工的水印。
+    验证文件中是否包含指定员工的水印（仅比对 employee_id）。
 
-    简化版验证：只比对 employee_id。
+    注意：仅做身份验证。如需完整性验证（含时间戳），请直接调用
+    processor.verify()。
 
     Args:
         file_path: 待验证文件

@@ -22,12 +22,12 @@ verifier.py ──── 独立验证（提取 + 比对 → 审计日志）
 ## 文件清单
 - `detector.py` — 文件类型检测，双重验证，中文路径兼容（~200行）
 - `router.py` — 策略路由，动态加载处理器（~172行）
-- `embedder.py` — 统一嵌入接口，含自动验证、回滚和审计（~192行）
-- `extractor.py` — 统一提取接口，含审计日志（~110行）
+- `embedder.py` — 统一嵌入接口，含 AI 强度建议(仅升级)、自动验证、回滚和审计（~200行）
+- `extractor.py` — 统一提取接口，含 AI 异常检测、文件大小检查和审计日志（~135行）
 - `verifier.py` — 独立验证接口，支持单文件和批量验证（~130行）
 
 ## 依赖关系
-- 本目录依赖：`src.watermarks.base`、`src.security`、`config/`
+- 本目录依赖：`src.watermarks.base`、`src.security`、`src.ai`、`config/`
 - 被以下模块依赖：`src.main`（CLI 入口）、`tests/`
 
 ## 核心 API

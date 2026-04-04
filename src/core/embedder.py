@@ -71,27 +71,24 @@ def embed_watermark(
             elapsed_time=time.monotonic() - start_time,
         )
 
-    # === 阶段1：路由匹配 ===
+    # AI 敏感度分析（opt-in, 只允许升级不降级, 延迟导入避免循环依赖）
     try:
-        route = route_file(input_path, strength=strength)
-    except Exception as e:
-        log_embed(str(input_path), payload.employee_id, False, message=f"Routing error: {e}")
-        return EmbedResult(
-            success=False, message=f"Routing error: {e}",
-            elapsed_time=time.monotonic() - start_time,
-        )
-    if route.processor is None:
-        log_embed(str(input_path), payload.employee_id, False, message=f"Routing failed: {route.error}")
-        return EmbedResult(
-            success=False, message=f"Routing failed: {route.error}",
-            elapsed_time=time.monotonic() - start_time,
-        )
+        from src.ai import analyze_sensitivity
+        _ai = analyze_sensitivity(input_path)
+        if _ai.from_ai:
+            _order = {"low": 0, "medium": 1, "high": 2}
+            if _order.get(_ai.recommended_strength, 1) > _order.get(strength.value, 1):
+                logger.info(f"AI升级水印强度: {strength.value} → {_ai.recommended_strength}")
+                strength = WatermarkStrength(_ai.recommended_strength)
+    except Exception:
+        logger.warning("AI sensitivity analysis failed (non-fatal)")
 
-    # 文件预检查（处理器级别）
-    if not route.processor.validate_file(input_path):
-        log_embed(str(input_path), payload.employee_id, False, message="File validation failed")
+    # === 阶段1：路由匹配 + 文件预检查 ===
+    route_err, route = _route_and_validate(input_path, strength)
+    if route_err:
+        log_embed(str(input_path), payload.employee_id, False, message=route_err)
         return EmbedResult(
-            success=False, message=f"File validation failed: {input_path}",
+            success=False, message=route_err,
             elapsed_time=time.monotonic() - start_time,
         )
 
@@ -137,6 +134,19 @@ def embed_watermark(
     return result
 
 
+def _route_and_validate(input_path: Path, strength):
+    """路由匹配 + 处理器级文件校验。返回 (错误信息, route) 或 (None, route)。"""
+    try:
+        route = route_file(input_path, strength=strength)
+    except Exception as e:
+        return f"Routing error: {e}", None
+    if route.processor is None:
+        return f"Routing failed: {route.error}", None
+    if not route.processor.validate_file(input_path):
+        return f"File validation failed: {input_path}", None
+    return None, route
+
+
 def _pre_checks(
     input_path: Path, output_path: Optional[Path], output_dir: Optional[Path],
 ) -> Optional[str]:
@@ -171,11 +181,9 @@ def _output_path_checks(
 def _auto_verify(processor, output_path: Path, payload) -> Optional[str]:
     """自动验证（fail-closed），返回错误信息或 None。"""
     try:
-        verified = processor.verify(output_path, payload)
-        if not verified:
+        if not processor.verify(output_path, payload):
             logger.error(f"Post-embed verification FAILED: {output_path}")
             return "Verification failed after embedding"
-        logger.info(f"Verification passed: {output_path}")
         return None
     except Exception as e:
         logger.exception(f"Verification exception (fail-closed): {e}")

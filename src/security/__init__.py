@@ -2,10 +2,10 @@
 
 from src.security.crypto import encrypt_payload, decrypt_payload, validate_key
 from src.security.key_manager import get_key, generate_key, save_key, load_key
-from src.security.audit import log_embed, log_extract, log_verify
+from src.security.audit import log_embed, log_extract, log_verify, log_ai_call
 
 __all__ = [
     "encrypt_payload", "decrypt_payload", "validate_key",
     "get_key", "generate_key", "save_key", "load_key",
-    "log_embed", "log_extract", "log_verify",
+    "log_embed", "log_extract", "log_verify", "log_ai_call",
 ]

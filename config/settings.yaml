@@ -27,6 +27,7 @@ ai:
   base_url: "https://api.deepseek.com"
   timeout: 30                   # API 超时秒数
   max_retries: 2                # 最大重试次数
+  temperature: 0.3              # 生成温度（低=更确定性的分析结果）
 
 # 安全设置
 security:
