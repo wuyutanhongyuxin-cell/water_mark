@@ -31,6 +31,7 @@
 | **AI 增强** | DeepSeek API 分析文件敏感度，智能推荐水印策略 |
 | **批量处理** | 一键扫描整个目录，自动批量加水印 |
 | **审计追溯** | 每次操作记录完整日志，可追溯可审计 |
+| **Web UI** | 浏览器操作界面，拖拽上传、实时进度、一键下载 |
 
 ## 支持的文件类型与算法
 
@@ -114,59 +115,127 @@ python -m src.main batch -d ./documents -e E001 --dry-run
 ```
 watermark/
 ├── config/                    # 配置文件
-│   ├── settings.yaml          # 全局配置（日志、AI、安全等）
+│   ├── settings.yaml          # 全局配置（日志、AI、安全、Web 等）
 │   └── watermark_rules.yaml   # 文件类型→水印算法路由规则
-├── src/                       # 源代码（40 文件，~4,633 行）
+├── src/                       # 源代码（57 文件，~5,977 行）
 │   ├── main.py                # CLI 入口 — Click group + 命令注册
 │   ├── core/                  # 核心调度层（5 文件，~837 行）
-│   │   ├── detector.py        # 文件类型检测（magic bytes + 扩展名双重验证）
-│   │   ├── router.py          # 策略路由（类型→处理器，lru_cache）
-│   │   ├── embedder.py        # 统一嵌入接口（AI 强度建议 + 自动验证 + 回滚）
-│   │   ├── extractor.py       # 统一提取接口（AI 异常检测 + 审计日志）
-│   │   └── verifier.py        # 水印验证接口（单文件 + 批量验证）
 │   ├── watermarks/            # 水印处理器（16 文件，~1,951 行）
-│   │   ├── base.py            # 抽象基类 + 数据结构
-│   │   ├── payload_codec.py   # 载荷编解码（v2 加密 1024-bit）
-│   │   ├── _bwm_constants.py  # blind-watermark 共享常量
-│   │   ├── zwc_codec.py       # 零宽字符编解码器
-│   │   ├── image_wm.py        # 图像盲水印（DWT-DCT-SVD）
-│   │   ├── pdf_wm.py          # PDF 盲水印（渲染→噪声→DWT-DCT-SVD→重建）
-│   │   ├── text_wm.py         # 纯文本水印（零宽字符）
-│   │   ├── office_wm.py       # Office 水印调度器
-│   │   ├── _docx_handler.py   # DOCX 格式处理器
-│   │   ├── _xlsx_handler.py   # XLSX 格式处理器
-│   │   ├── _pptx_handler.py   # PPTX 格式处理器
-│   │   ├── audio_wm.py        # 音频盲水印（DWT-DCT-QIM）
-│   │   ├── _audio_core.py     # 音频核心算法
-│   │   ├── video_wm.py        # 视频盲水印（逐帧 DWT-DCT-SVD + 多数表决）
-│   │   └── _video_core.py     # 视频帧处理 + ffmpeg 工具
 │   ├── security/              # 安全模块（4 文件，~384 行）
-│   │   ├── crypto.py          # AES-256-GCM 加密/解密
-│   │   ├── key_manager.py     # 密钥生成/保存/加载（环境变量优先）
-│   │   └── audit.py           # 结构化审计日志（loguru sink）+ AI 调用审计
 │   ├── ai/                    # AI 集成模块（6 文件，~567 行）
-│   │   ├── ai_types.py        # SensitivityResult + AnomalyResult 数据类
-│   │   ├── _sanitize.py       # 输入清洗（防 prompt injection）
-│   │   ├── deepseek_client.py # DeepSeek API 客户端（OpenAI 兼容，懒加载）
-│   │   ├── sensitivity.py     # 文件敏感度分析 + 策略建议
-│   │   └── anomaly.py         # 异常/攻击检测（规则引擎 + AI 双引擎）
-│   └── cli/                   # CLI 模块（5 文件，~748 行）
-│       ├── __init__.py        # 共享工具：颜色输出、结果格式化、强度解析
-│       ├── scan.py            # 目录扫描：过滤可处理文件、按类别统计
-│       ├── verify_cmd.py      # verify 命令：单文件 + 目录批量验证
-│       ├── batch_cmd.py       # batch 命令：auto/semi/manual 三模式
-│       └── _batch_helpers.py  # batch 辅助函数
-├── tests/                     # 测试套件（25 文件，~3,413 行，233 用例，覆盖率 72%）
-│   ├── conftest.py            # 共享 fixtures（程序化生成测试数据）
-│   ├── test_e2e.py            # 端到端集成测试（12 用例）
-│   └── ...                    # 24 个测试文件，覆盖全部模块
+│   ├── cli/                   # CLI 模块（5 文件，~748 行）
+│   └── web/                   # Web UI 模块（17 文件，~1,344 行）
+│       ├── app.py             # FastAPI 应用工厂 + 生命周期
+│       ├── schemas.py         # Pydantic v2 请求/响应模型
+│       ├── dependencies.py    # 文件校验、上传保存、路径清洗
+│       ├── routes/            # 路由层（6 文件）
+│       │   ├── pages.py       # 页面渲染（嵌入/提取/验证/历史）
+│       │   ├── api_embed.py   # 嵌入 API（单文件/批量/下载）
+│       │   ├── api_extract.py # 提取 API
+│       │   ├── api_verify.py  # 验证 API（单文件/批量）
+│       │   └── api_tasks.py   # 任务状态/SSE/历史/配置
+│       └── services/          # 业务逻辑层（4 文件）
+│           ├── task_manager.py # 任务队列 + SSE 事件分发
+│           ├── embed_service.py # 嵌入业务
+│           ├── extract_service.py # 提取/验证业务
+│           └── cleanup.py     # 临时文件清理守护线程
+├── templates/                 # Jinja2 HTML 模板（9 文件）
+├── static/                    # 静态资源 CSS/JS（7 文件）
+├── tests/                     # 测试套件（27 文件，~3,870 行，264 用例）
 ├── docs/                      # 文档
-│   ├── research.md            # 盲水印技术研究资料
-│   └── usage.md               # 使用指南（API + CLI + 配置 + FAQ）
 └── tasks/                     # 开发管理
-    ├── todo.md                # 任务追踪
-    └── lessons.md             # 纠错经验记录（20+ 条）
 ```
+
+## Web UI 使用教程（浏览器操作）
+
+> 不需要懂命令行！打开浏览器就能用，拖拽文件即可完成水印操作。
+
+### 第一步：启动 Web 服务
+
+```bash
+# 进入项目目录
+cd water_mark
+
+# 安装依赖（只需要第一次）
+pip install -r requirements.txt
+
+# 启动 Web 服务
+python -m src.web
+```
+
+看到下面这行就说明启动成功了：
+```
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+然后打开浏览器，访问 **http://localhost:8000**
+
+### 第二步：嵌入水印（给文件加水印）
+
+1. 打开浏览器，进入 http://localhost:8000（自动跳转到嵌入页面）
+2. **拖拽文件**到虚线框区域（或点击选择文件），支持同时多个文件
+3. 填写 **员工 ID**（必填，比如 `E001` 或 `zhangsan`）
+4. 选择 **嵌入强度**：
+   - 低强度：视觉影响最小，适合高质量图片
+   - 中强度（推荐）：平衡质量与鲁棒性
+   - 高强度：最高鲁棒性，可能轻微影响质量
+5. 点击 **"开始嵌入"** 按钮
+6. 等待进度条走完（实时显示处理进度）
+7. 处理完成后点击 **"下载文件"** 保存带水印的文件
+
+```
+支持的文件格式：
+  图片: JPG, PNG, BMP, TIFF, WebP
+  文档: PDF, DOCX, XLSX, PPTX
+  文本: TXT, CSV, JSON, MD
+  音频: WAV, FLAC
+  视频: MP4, AVI, MKV, MOV
+```
+
+### 第三步：提取水印（查看文件里藏了什么）
+
+1. 点击顶部导航 **"提取水印"**
+2. 拖拽或选择一个带水印的文件
+3. 点击 **"提取水印"** 按钮
+4. 页面会显示：
+   - **员工 ID**（大号字体，一眼看到是谁的水印）
+   - **嵌入时间**（什么时候加的水印）
+   - **置信度**（提取的可信程度，绿色=高，黄色=中，红色=低）
+
+### 第四步：验证水印（批量检查一批文件）
+
+1. 点击顶部导航 **"验证水印"**
+2. 拖拽多个文件���上传区
+3. （可选）填写 **预期员工 ID**，用来检查是否匹配
+4. 点击 **"开始验证"**
+5. 结果表格显示每个文件的状态：
+   - ✓ 绿色 = 验证通过
+   - ✗ 红色 = 验证失败或不匹配
+
+### 第五步：查看操作历史
+
+1. 点击顶部导航 **"操作历史"**
+2. 看到所有嵌入/提取/验证的操作记录
+3. 可以按操作类型筛选（嵌入/提取/验证）
+
+### Web API（给开发者用）
+
+如果你需要通过程序调用，Web 服务同时提供 REST API：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/embed` | 单文件嵌入水印 |
+| POST | `/api/embed/batch` | 批量嵌入 |
+| GET | `/api/embed/{task_id}/download` | 下载水印文件 |
+| POST | `/api/extract` | 提取水印 |
+| POST | `/api/verify` | 单文件验证 |
+| POST | `/api/verify/batch` | 批量验证 |
+| GET | `/api/tasks/{task_id}/events` | SSE 实时进度 |
+| GET | `/api/config` | 查看支持的文件类型 |
+
+API 文档：启动服务后访问 http://localhost:8000/docs（Swagger UI）
+
+---
 
 ## 技术原理
 
@@ -235,6 +304,7 @@ watermark/
 | Phase 6 | DeepSeek AI 集成（敏感度分析 + 异常检测 + 规则引擎）+ 三方代码审查 | ✅ 完成 |
 | Phase 7 | CLI 命令行（embed/extract/verify/batch 四命令 + 三模式批量处理） | ✅ 完成 |
 | Phase 8 | 测试套件（233 用例，覆盖率 72%）+ 使用文档 | ✅ 完成 |
+| Phase 9 | Web UI（FastAPI + Tailwind + Alpine.js，4 页面 + 16 路由 + SSE 实时进度） | ✅ 完成 |
 
 ## 测试
 
@@ -251,8 +321,8 @@ pytest --cov=src --cov-report=term-missing
 
 | 指标 | 数值 |
 |------|------|
-| 测试文件 | 25 个 |
-| 测试用例 | 233 个 |
+| 测试文件 | 27 个 |
+| 测试用例 | 264 个（含 31 个 Web UI 测试） |
 | 通过率 | 100% |
 | 整体覆盖率 | 72% |
 | 核心模块覆盖率 | ≥80%（key_manager 100%, payload_codec 91%, zwc_codec 97%, base 96%, crypto 86%）|
@@ -261,9 +331,11 @@ pytest --cov=src --cov-report=term-missing
 
 | 模块 | 文件数 | 行数 |
 |------|--------|------|
-| src/ 源代码 | 40 | 4,633 |
-| tests/ 测试 | 25 | 3,413 |
-| **合计** | **65** | **~8,046** |
+| src/ 源代码 | 57 | 5,977 |
+| templates/ 模板 | 9 | 1,000 |
+| static/ 前端资源 | 7 | 901 |
+| tests/ 测试 | 27 | 3,870 |
+| **合计** | **100** | **~11,748** |
 
 ## 技术栈
 
@@ -280,7 +352,10 @@ pytest --cov=src --cov-report=term-missing
 | 加密 | cryptography (AES-256-GCM) |
 | 文件检测 | python-magic-bin + filetype |
 | CLI | click |
-| 测试 | pytest + pytest-cov |
+| Web 框架 | FastAPI + Jinja2 |
+| Web 服务器 | uvicorn |
+| 前端 UI | Tailwind CSS + Alpine.js |
+| 测试 | pytest + pytest-cov + httpx |
 
 ## License
 

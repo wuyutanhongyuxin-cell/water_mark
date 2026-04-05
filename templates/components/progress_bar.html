@@ -1,0 +1,26 @@
+<!--
+  可复用进度条组件
+  在 Alpine x-data 上下文中需要提供:
+    - progress: 0-100 的进度值
+    - status_text: 状态描述文本
+    - processing: 是否正在处理中（用于条纹动画）
+-->
+<div class="w-full">
+    <!-- 进度条容器 -->
+    <div class="flex items-center justify-between mb-1">
+        <span class="text-xs text-slate-400" x-text="status_text || '等待中...'"></span>
+        <span class="text-xs font-mono text-slate-400" x-text="Math.round(progress) + '%'"></span>
+    </div>
+
+    <!-- 进度条轨道 -->
+    <div class="w-full h-2.5 bg-slate-700 rounded-full overflow-hidden">
+        <div class="h-full rounded-full transition-all duration-300 ease-out"
+             :class="{
+                 'bg-blue-500': progress < 100,
+                 'bg-green-500': progress >= 100,
+                 'progress-stripe': processing && progress < 100
+             }"
+             :style="'width: ' + Math.min(progress, 100) + '%'">
+        </div>
+    </div>
+</div>

@@ -1,0 +1,55 @@
+<!--
+  可复用拖拽上传区域组件
+  使用方式: {% include "components/upload_zone.html" %}
+  需要在外层 Alpine x-data 中提供以下方法/变量:
+    - zone_id: 上传区域的 DOM id（可选，默认 'upload-zone'）
+    - multiple: 是否允许多文件上传（由 include 前的变量控制）
+    - handleFiles(files): 处理选中的文件列表
+    - dragover: 拖拽悬停状态（布尔值）
+-->
+<div id="{{ zone_id|default('upload-zone') }}"
+     class="relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
+            transition-all duration-200 ease-in-out
+            border-slate-600 hover:border-slate-500 bg-slate-800/40 hover:bg-slate-800/60"
+     :class="{ 'drag-highlight border-blue-500 bg-blue-500/10': dragover }"
+     @dragover.prevent="dragover = true"
+     @dragleave.prevent="dragover = false"
+     @drop.prevent="dragover = false; handleFiles($event.dataTransfer.files)"
+     @click="$refs.fileInput_{{ zone_id|default('upload') }}.click()">
+
+    <!-- 隐藏的文件输入 -->
+    <input type="file"
+           x-ref="fileInput_{{ zone_id|default('upload') }}"
+           class="hidden"
+           {% if multiple %}multiple{% endif %}
+           @change="handleFiles($event.target.files); $event.target.value = ''">
+
+    <!-- 上传图标 -->
+    <div class="flex justify-center mb-4">
+        <div class="w-14 h-14 rounded-full bg-slate-700/80 flex items-center justify-center"
+             :class="{ 'bg-blue-600/20': dragover }">
+            <svg class="w-7 h-7 text-slate-400 transition-colors"
+                 :class="{ 'text-blue-400': dragover }"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775
+                         5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- 主提示文本 -->
+    <p class="text-slate-300 font-medium mb-1">
+        拖拽文件到此处，或<span class="text-blue-400">点击选择文件</span>
+    </p>
+
+    <!-- 支持格式提示 -->
+    <p class="text-xs text-slate-500">
+        {{ supported_text|default('支持 JPG / PNG / PDF / DOCX / XLSX / PPTX / TXT / MP3 / MP4 等格式') }}
+    </p>
+
+    <!-- 多文件提示 -->
+    {% if multiple %}
+    <p class="text-xs text-slate-500 mt-1">可同时选择多个文件</p>
+    {% endif %}
+</div>

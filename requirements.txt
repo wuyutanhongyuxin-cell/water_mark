@@ -43,6 +43,13 @@ openai>=1.0.0
 scipy>=1.11.0            # DCT/IDCT 用于音频水印
 soundfile>=0.12.0        # WAV/FLAC/OGG 音频读写
 
+# === Web UI ===
+fastapi>=0.109.0               # Web 框架
+uvicorn[standard]>=0.27.0      # ASGI 服务器
+jinja2>=3.1.0                  # 模板引擎
+python-multipart>=0.0.6        # 文件上传支持
+
 # === 测试 ===
 pytest>=7.4.0
 pytest-cov>=4.1.0
+httpx>=0.26.0                  # FastAPI 测试客户端

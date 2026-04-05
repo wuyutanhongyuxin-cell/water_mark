@@ -43,3 +43,11 @@ batch:
   max_workers: 4                # 并行处理线程数
   skip_errors: false            # 遇错是否跳过继续
   recursive: true               # 是否递归扫描子目录
+
+# Web UI 设置
+web:
+  host: "0.0.0.0"              # 监听地址
+  port: 8000                    # 监听端口
+  reload: false                 # 开发模式热重载
+  temp_file_max_age_min: 30     # 临时文件过期时间（分钟）
+  cleanup_interval_min: 10      # 清理间隔（分钟）

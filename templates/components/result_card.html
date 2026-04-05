@@ -1,0 +1,81 @@
+<!--
+  可复用结果卡片组件
+  在 Alpine x-data 上下文中需要提供:
+    - result.success: 布尔值，成功/失败
+    - result.filename: 文件名
+    - result.message: 状态消息
+    - result.task_id: 任务 ID（用于下载链接）
+    - result.details: 可展开的详情文本（可选）
+-->
+<div class="rounded-xl border transition-all duration-200"
+     :class="result.success
+         ? 'bg-slate-800 border-green-500/30 hover:border-green-500/50'
+         : 'bg-slate-800 border-red-500/30 hover:border-red-500/50'"
+     x-data="{ expanded: false }">
+
+    <div class="p-4 flex items-start gap-3">
+        <!-- 状态图标 -->
+        <div class="flex-shrink-0 mt-0.5">
+            <!-- 成功图标 -->
+            <template x-if="result.success">
+                <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                    </svg>
+                </div>
+            </template>
+            <!-- 失败图标 -->
+            <template x-if="!result.success">
+                <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </div>
+            </template>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-200 truncate" x-text="result.filename"></p>
+            <p class="text-xs mt-0.5"
+               :class="result.success ? 'text-green-400' : 'text-red-400'"
+               x-text="result.message"></p>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- 下载按钮（仅成功时显示） -->
+            <template x-if="result.success && result.task_id">
+                <a :href="'/api/embed/' + result.task_id + '/download'"
+                   class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg
+                          bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                    </svg>
+                    下载
+                </a>
+            </template>
+
+            <!-- 展开详情按钮 -->
+            <template x-if="result.details">
+                <button @click="expanded = !expanded"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': expanded }"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+                    </svg>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- 可展开详情区域 -->
+    <template x-if="result.details">
+        <div x-show="expanded" x-collapse
+             class="px-4 pb-4 pt-0">
+            <div class="p-3 bg-slate-900/60 rounded-lg text-xs text-slate-400 font-mono whitespace-pre-wrap"
+                 x-text="result.details"></div>
+        </div>
+    </template>
+</div>
