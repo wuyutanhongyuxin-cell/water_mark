@@ -1,12 +1,11 @@
-<!--
-  可复用拖拽上传区域组件
-  使用方式: {% include "components/upload_zone.html" %}
-  需要在外层 Alpine x-data 中提供以下方法/变量:
-    - zone_id: 上传区域的 DOM id（可选，默认 'upload-zone'）
-    - multiple: 是否允许多文件上传（由 include 前的变量控制）
-    - handleFiles(files): 处理选中的文件列表
-    - dragover: 拖拽悬停状态（布尔值）
--->
+{# 可复用拖拽上传区域组件
+   使用方式: include "components/upload_zone.html"
+   需要在外层 Alpine x-data 中提供以下方法/变量:
+     - zone_id: 上传区域的 DOM id
+     - multiple: 是否允许多文件上传
+     - handleFiles(files): 处理选中的文件列表
+     - dragover: 拖拽悬停状态（布尔值）
+#}
 <div id="{{ zone_id|default('upload-zone') }}"
      class="relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
             transition-all duration-200 ease-in-out
