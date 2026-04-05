@@ -97,11 +97,20 @@
 - [x] 错误场景：不存在文件/错误ID/空目录 全部正确处理
 - [x] 退出码：0=全成功, 1=部分失败, 2=全失败
 
-## Phase 8: 测试 + 文档
-- [ ] 所有模块的单元测试
-- [ ] 端到端集成测试
-- [ ] 性能基准测试
-- [ ] 使用文档
+## Phase 8: 测试 + 文档 ✅
+- [x] pytest.ini + conftest.py 测试基础设施
+- [x] 安全模块测试：test_crypto.py (10), test_key_manager.py (13)
+- [x] 编解码测试：test_payload_codec.py (15), test_zwc_codec.py (9)
+- [x] 基础类测试：test_base.py (14)
+- [x] 检测+路由测试：test_detector.py (14), test_router.py (12)
+- [x] 水印处理器测试：test_image_wm.py (6), test_text_wm.py (7), test_office_wm.py (7), test_pdf_wm.py (5), test_audio_wm.py (6), test_video_wm.py (6)
+- [x] 核心 API 测试：test_embedder.py (11), test_extractor.py (8), test_verifier.py (6)
+- [x] AI 模块测试：test_sanitize.py (12), test_ai_anomaly.py (17)
+- [x] CLI 测试：test_cli_utils.py (16), test_cli_scan.py (13), test_cli_commands.py (10)
+- [x] E2E 集成测试：test_e2e.py (12)
+- [x] 性能基准测试：test_benchmark.py (4)
+- [x] 使用文档：docs/usage.md + tests/README.md
+- [x] **233 测试全部通过，覆盖率 72%**（核心模块 ≥80%）
 
 ---
 
@@ -119,3 +128,4 @@
 | 2026-04-04 | Phase 6 完成：DeepSeek AI 集成，4 个新文件 + 3 个修改，graceful degradation + 规则引擎 + JSON 解析全部测试通过 |
 | 2026-04-05 | Phase 6 代码审查：Codex gpt-5.3-codex + Sonnet 4.6 双审 → Opus 4.6 裁决，13 项修复 + 回归 6/6 通过 |
 | 2026-04-05 | Phase 7 完成：CLI 4 命令(embed/extract/verify/batch) + 3 模式(auto/semi/manual) + 目录扫描，6 个新文件，E2E 全部通过 |
+| 2026-04-05 | Phase 8 完成：25 个测试文件 + 2 个文档，233 测试用例 100% 通过，覆盖率 72% |

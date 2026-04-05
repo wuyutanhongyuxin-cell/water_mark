@@ -87,59 +87,85 @@ if extracted.success:
     print(f"嵌入时间: {extracted.payload.timestamp}")
 ```
 
-### 3. CLI 命令（Phase 7 开发中）
+### 3. CLI 命令
 
 ```bash
 # 单文件嵌入
-python -m src.main embed --input report.pdf --employee E001
-
-# 批量嵌入整个目录
-python -m src.main batch --dir ./documents --employee E001
+python -m src.main embed -i report.pdf -e E001
 
 # 提取水印
-python -m src.main extract --input leaked_file.pdf
+python -m src.main extract -i leaked_file.pdf
+
+# 验证水印
+python -m src.main verify -i file_wm.pdf -e E001
+
+# 批量嵌入整个目录（auto/semi/manual 三模式）
+python -m src.main batch -d ./documents -e E001 -m auto
+
+# 批量验证目录
+python -m src.main verify -i ./output/ -r
+
+# 批量嵌入预览（不实际执行）
+python -m src.main batch -d ./documents -e E001 --dry-run
 ```
 
 ## 项目架构
 
 ```
 watermark/
-├── config/                # 配置文件
-│   ├── settings.yaml      # 全局配置（日志、AI、安全等）
-│   └── watermark_rules.yaml  # 文件类型→水印算法路由规则
-├── src/
-│   ├── core/              # 核心调度层
-│   │   ├── detector.py    # 文件类型检测（双重验证）
-│   │   ├── router.py      # 策略路由（类型→处理器）
-│   │   ├── embedder.py    # 统一嵌入接口
-│   │   ├── extractor.py   # 统一提取接口
-│   │   └── verifier.py    # 水印验证接口
-│   ├── watermarks/        # 水印处理器（策略模式）
-│   │   ├── base.py        # 抽象基类
-│   │   ├── payload_codec.py # 载荷编解码（v2 加密 1024-bit）
-│   │   ├── _bwm_constants.py # blind-watermark 共享常量
-│   │   ├── zwc_codec.py   # 零宽字符编解码器
-│   │   ├── image_wm.py    # 图像盲水印（DWT-DCT-SVD）
-│   │   ├── pdf_wm.py      # PDF 盲水印（渲染→重建）
-│   │   ├── text_wm.py     # 纯文本水印（零宽字符）
-│   │   ├── office_wm.py   # Office 调度器
-│   │   ├── _docx/_xlsx/_pptx_handler.py  # 格式处理器
-│   │   ├── audio_wm.py    # 音频盲水印（DWT-DCT-QIM）
-│   │   ├── _audio_core.py # 音频核心算法
-│   │   ├── video_wm.py    # 视频盲水印（逐帧 DWT-DCT-SVD）
-│   │   └── _video_core.py # 视频帧处理 + ffmpeg 工具
-│   ├── security/          # 安全模块
-│   │   ├── crypto.py      # AES-256-GCM 加密
-│   │   ├── key_manager.py # 密钥管理
-│   │   └── audit.py       # 审计日志
-│   └── ai/                # AI 集成
-│       └── deepseek_client.py  # DeepSeek API
-├── tests/                 # 测试
-├── docs/                  # 技术文档
-│   └── research.md        # 盲水印技术研究资料
-└── tasks/                 # 开发管理
-    ├── todo.md            # 任务追踪
-    └── lessons.md         # 经验记录
+├── config/                    # 配置文件
+│   ├── settings.yaml          # 全局配置（日志、AI、安全等）
+│   └── watermark_rules.yaml   # 文件类型→水印算法路由规则
+├── src/                       # 源代码（40 文件，~4,633 行）
+│   ├── main.py                # CLI 入口 — Click group + 命令注册
+│   ├── core/                  # 核心调度层（5 文件，~837 行）
+│   │   ├── detector.py        # 文件类型检测（magic bytes + 扩展名双重验证）
+│   │   ├── router.py          # 策略路由（类型→处理器，lru_cache）
+│   │   ├── embedder.py        # 统一嵌入接口（AI 强度建议 + 自动验证 + 回滚）
+│   │   ├── extractor.py       # 统一提取接口（AI 异常检测 + 审计日志）
+│   │   └── verifier.py        # 水印验证接口（单文件 + 批量验证）
+│   ├── watermarks/            # 水印处理器（16 文件，~1,951 行）
+│   │   ├── base.py            # 抽象基类 + 数据结构
+│   │   ├── payload_codec.py   # 载荷编解码（v2 加密 1024-bit）
+│   │   ├── _bwm_constants.py  # blind-watermark 共享常量
+│   │   ├── zwc_codec.py       # 零宽字符编解码器
+│   │   ├── image_wm.py        # 图像盲水印（DWT-DCT-SVD）
+│   │   ├── pdf_wm.py          # PDF 盲水印（渲染→噪声→DWT-DCT-SVD→重建）
+│   │   ├── text_wm.py         # 纯文本水印（零宽字符）
+│   │   ├── office_wm.py       # Office 水印调度器
+│   │   ├── _docx_handler.py   # DOCX 格式处理器
+│   │   ├── _xlsx_handler.py   # XLSX 格式处理器
+│   │   ├── _pptx_handler.py   # PPTX 格式处理器
+│   │   ├── audio_wm.py        # 音频盲水印（DWT-DCT-QIM）
+│   │   ├── _audio_core.py     # 音频核心算法
+│   │   ├── video_wm.py        # 视频盲水印（逐帧 DWT-DCT-SVD + 多数表决）
+│   │   └── _video_core.py     # 视频帧处理 + ffmpeg 工具
+│   ├── security/              # 安全模块（4 文件，~384 行）
+│   │   ├── crypto.py          # AES-256-GCM 加密/解密
+│   │   ├── key_manager.py     # 密钥生成/保存/加载（环境变量优先）
+│   │   └── audit.py           # 结构化审计日志（loguru sink）+ AI 调用审计
+│   ├── ai/                    # AI 集成模块（6 文件，~567 行）
+│   │   ├── ai_types.py        # SensitivityResult + AnomalyResult 数据类
+│   │   ├── _sanitize.py       # 输入清洗（防 prompt injection）
+│   │   ├── deepseek_client.py # DeepSeek API 客户端（OpenAI 兼容，懒加载）
+│   │   ├── sensitivity.py     # 文件敏感度分析 + 策略建议
+│   │   └── anomaly.py         # 异常/攻击检测（规则引擎 + AI 双引擎）
+│   └── cli/                   # CLI 模块（5 文件，~748 行）
+│       ├── __init__.py        # 共享工具：颜色输出、结果格式化、强度解析
+│       ├── scan.py            # 目录扫描：过滤可处理文件、按类别统计
+│       ├── verify_cmd.py      # verify 命令：单文件 + 目录批量验证
+│       ├── batch_cmd.py       # batch 命令：auto/semi/manual 三模式
+│       └── _batch_helpers.py  # batch 辅助函数
+├── tests/                     # 测试套件（25 文件，~3,413 行，233 用例，覆盖率 72%）
+│   ├── conftest.py            # 共享 fixtures（程序化生成测试数据）
+│   ├── test_e2e.py            # 端到端集成测试（12 用例）
+│   └── ...                    # 24 个测试文件，覆盖全部模块
+├── docs/                      # 文档
+│   ├── research.md            # 盲水印技术研究资料
+│   └── usage.md               # 使用指南（API + CLI + 配置 + FAQ）
+└── tasks/                     # 开发管理
+    ├── todo.md                # 任务追踪
+    └── lessons.md             # 纠错经验记录（20+ 条）
 ```
 
 ## 技术原理
@@ -206,9 +232,38 @@ watermark/
 | Phase 3 | 安全模块（AES-256-GCM/密钥管理/审计日志） | ✅ 完成 |
 | Phase 4 | PDF + Office + Text 水印（8 种格式，E2E 8/8 通过） | ✅ 完成 |
 | Phase 5 | 音视频水印（DWT-DCT-QIM + 逐帧 DWT-DCT-SVD）+ 三方代码审查 | ✅ 完成 |
-| Phase 6 | DeepSeek AI 集成 | 📋 计划中 |
-| Phase 7 | CLI + 自动化 | 📋 计划中 |
-| Phase 8 | 测试 + 文档 | 📋 计划中 |
+| Phase 6 | DeepSeek AI 集成（敏感度分析 + 异常检测 + 规则引擎）+ 三方代码审查 | ✅ 完成 |
+| Phase 7 | CLI 命令行（embed/extract/verify/batch 四命令 + 三模式批量处理） | ✅ 完成 |
+| Phase 8 | 测试套件（233 用例，覆盖率 72%）+ 使用文档 | ✅ 完成 |
+
+## 测试
+
+```bash
+# 运行全部测试
+pytest
+
+# 跳过慢测试（视频水印 + 性能基准）
+pytest -m "not slow and not benchmark"
+
+# 查看覆盖率报告
+pytest --cov=src --cov-report=term-missing
+```
+
+| 指标 | 数值 |
+|------|------|
+| 测试文件 | 25 个 |
+| 测试用例 | 233 个 |
+| 通过率 | 100% |
+| 整体覆盖率 | 72% |
+| 核心模块覆盖率 | ≥80%（key_manager 100%, payload_codec 91%, zwc_codec 97%, base 96%, crypto 86%）|
+
+## 代码规模
+
+| 模块 | 文件数 | 行数 |
+|------|--------|------|
+| src/ 源代码 | 40 | 4,633 |
+| tests/ 测试 | 25 | 3,413 |
+| **合计** | **65** | **~8,046** |
 
 ## 技术栈
 
@@ -225,6 +280,7 @@ watermark/
 | 加密 | cryptography (AES-256-GCM) |
 | 文件检测 | python-magic-bin + filetype |
 | CLI | click |
+| 测试 | pytest + pytest-cov |
 
 ## License
 
@@ -232,4 +288,4 @@ MIT License
 
 ---
 
-> Built with ❤️ for enterprise document security
+> Built with Claude Code for enterprise document security
